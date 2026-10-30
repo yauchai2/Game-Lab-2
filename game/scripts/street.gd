@@ -87,19 +87,33 @@ func _box(pos: Vector3, size: Vector3, color: Color, collide := false, parent: N
 	return node
 
 func _setup_environment() -> void:
+	# 橙紅黃昏天空、青色環境光、暖色低角度太陽（參考 SLUMLORDZ SANDWICH）。
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color("2B6A84")
+	sky_mat.sky_horizon_color = Color("FF7A3D")
+	sky_mat.ground_horizon_color = Color("D85A34")
+	sky_mat.ground_bottom_color = Color("4A2A3A")
+	sky_mat.sky_curve = 0.18
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = SKY
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("F4E9D6")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color("7FA9C4")
+	env.ambient_light_energy = 0.85
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.fog_enabled = true
+	env.fog_light_color = Color("F29A63")
+	env.fog_density = 0.0015
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	var sun: DirectionalLight3D = get_parent().get_node_or_null("Sun")
 	if sun:
-		sun.light_color = Color("FFF1D6")
-		sun.light_energy = 0.7
+		sun.rotation_degrees = Vector3(-30, -40, 0)
+		sun.light_color = Color("FFC27F")
+		sun.light_energy = 0.75
 		sun.shadow_enabled = true
 
 func _build_ground() -> void:
