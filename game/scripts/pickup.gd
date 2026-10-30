@@ -1,5 +1,5 @@
 extends Node3D
-## Loot dropped by enemies. kind: "xp" (mint gem) or "hp" (coral orb). Walk close to collect.
+## Loot dropped by enemies. kind: "xp" (mint), "hp" (coral) or "receipt" (chalk white, the currency). Walk close to collect.
 
 var kind := "xp"
 var value := 10
@@ -14,7 +14,7 @@ func _ready() -> void:
 	bm.size = Vector3(0.35, 0.35, 0.35)
 	mi.mesh = bm
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color("75C7B0") if kind == "xp" else Color("CC6657")
+	m.albedo_color = {"xp": Color("75C7B0"), "hp": Color("CC6657"), "receipt": Color("E7DFC9")}[kind]
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mi.material_override = m
 	add_child(mi)
@@ -30,10 +30,13 @@ func _process(delta: float) -> void:
 	to.y = 0.0
 	var dist := to.length()
 	if dist < COLLECT_RANGE:
-		if kind == "xp":
-			player.gain_xp(value)
-		else:
-			player.heal(value)
+		match kind:
+			"xp":
+				player.gain_xp(value)
+			"hp":
+				player.heal(value)
+			"receipt":
+				player.receipts += value
 		queue_free()
 	elif dist < MAGNET_RANGE and age > 0.4:
 		global_position += to.normalized() * 9.0 * delta

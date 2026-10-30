@@ -78,6 +78,7 @@ func _physics_process(delta: float) -> void:
 
 func _drop_loot() -> void:
 	_spawn_pickup("xp", 10, Vector3(0.3, 0, 0))
+	_spawn_pickup("receipt", 2 if ranged else 1, Vector3(0, 0, 0.3))
 	if randf() < 0.35:
 		_spawn_pickup("hp", 20, Vector3(-0.3, 0, 0))
 

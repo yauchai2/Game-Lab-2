@@ -8,17 +8,17 @@ var xp_back := ColorRect.new()
 var xp_fill := ColorRect.new()
 var info := Label.new()
 var banner := Label.new()
-var choice_box := VBoxContainer.new()
-var choices: Array = []
+var bench := VBoxContainer.new()
+var bench_msg := Label.new()
 
 @onready var jax: Node = get_parent().get_node("Jax")
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	choice_box.position = Vector2(170, 90)
-	choice_box.custom_minimum_size = Vector2(300, 0)
-	choice_box.visible = false
-	add_child(choice_box)
+	bench.position = Vector2(120, 62)
+	bench.custom_minimum_size = Vector2(400, 0)
+	bench.visible = false
+	add_child(bench)
 	hp_back.color = Color("292D3B")
 	hp_back.position = Vector2(8, 8)
 	hp_back.size = BAR_SIZE + Vector2(2, 2)
@@ -43,14 +43,12 @@ func _ready() -> void:
 	add_child(banner)
 
 func _process(_delta: float) -> void:
-	if jax.pending_choices > 0 and not choice_box.visible and not jax.dead:
-		_show_choices()
 	hp_fill.size.x = BAR_SIZE.x * float(jax.hp) / float(jax.max_hp)
 	xp_fill.size.x = BAR_SIZE.x * float(jax.xp) / float(jax.xp_to_next())
 	var cd: float = jax.skill_timer
 	var skill := "READY" if cd <= 0.0 else "%.1fs" % cd
 	var dash: String = "READY" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
-	info.text = "Lv %d  HP %d/%d  Wave %d\nDemolish [Q/RMB]: %s   Dash [Space]: %s" % [jax.level, jax.hp, jax.max_hp, get_parent().wave, skill, dash]
+	info.text = "Lv %d  HP %d/%d  Wave %d  Receipts %d\nDemolish [Q/RMB]: %s   Dash [Space]: %s   Cartridge [C]" % [jax.level, jax.hp, jax.max_hp, get_parent().wave, jax.receipts, skill, dash]
 	if jax.dead:
 		banner.text = "KO  -  press R to restart"
 	elif jax.levelup_flash > 0.0:
@@ -58,39 +56,66 @@ func _process(_delta: float) -> void:
 	else:
 		banner.text = ""
 
-func _show_choices() -> void:
-	for c in choice_box.get_children():
-		c.queue_free()
-	var pool: Array = jax.UPGRADES.duplicate()
-	pool.shuffle()
-	choices = pool.slice(0, 3)
-	var title := Label.new()
-	title.text = "LEVEL UP!  Pick an upgrade (1/2/3)"
-	title.add_theme_font_size_override("font_size", 12)
-	title.add_theme_color_override("font_outline_color", Color("292D3B"))
-	title.add_theme_constant_override("outline_size", 4)
-	choice_box.add_child(title)
-	for i in choices.size():
-		var b := Button.new()
-		b.text = "%d. %s" % [i + 1, choices[i]["label"]]
-		b.add_theme_font_size_override("font_size", 10)
-		b.pressed.connect(choose.bind(i))
-		choice_box.add_child(b)
-	choice_box.visible = true
-	get_tree().paused = true
+func toggle_bench() -> void:
+	if bench.visible:
+		bench.visible = false
+		get_tree().paused = false
+	elif not jax.dead:
+		bench.visible = true
+		get_tree().paused = true
+		bench_msg.text = ""
+		_refresh_bench()
 
-func choose(i: int) -> void:
-	if i < 0 or i >= choices.size():
-		return
-	jax.apply_upgrade(choices[i]["id"])
-	jax.pending_choices -= 1
-	choices = []
-	choice_box.visible = false
-	get_tree().paused = false
+func _bench_label(text: String, size := 10) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_outline_color", Color("292D3B"))
+	l.add_theme_constant_override("outline_size", 4)
+	return l
+
+func _bench_button(text: String, handler: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.add_theme_font_size_override("font_size", 10)
+	b.pressed.connect(handler)
+	return b
+
+func _refresh_bench() -> void:
+	for c in bench.get_children():
+		c.queue_free()
+	bench.add_child(_bench_label("CARTRIDGE: DEMOLISH   Receipts %d   (C to close)" % jax.receipts, 12))
+	bench.add_child(_bench_label("Slots (click to remove):"))
+	for i in jax.slots.size():
+		var id: String = jax.slots[i]
+		var text := "Slot %s: %s" % ["AB"[i], jax.ATTACHMENTS[id]["name"] if id != "" else "(empty)"]
+		bench.add_child(_bench_button(text, _on_slot.bind(i)))
+	bench.add_child(_bench_label("Attachments (click to buy / equip):"))
+	for id in jax.ATTACHMENTS:
+		var a: Dictionary = jax.ATTACHMENTS[id]
+		var state := "EQUIPPED" if jax.slots.has(id) else ("owned" if jax.owned.has(id) else "%d receipts" % a["cost"])
+		bench.add_child(_bench_button("%s - %s  [%s]" % [a["name"], a["desc"], state], _on_attachment.bind(id)))
+	bench_msg = _bench_label("")
+	bench.add_child(bench_msg)
+
+func _on_slot(i: int) -> void:
+	jax.unequip(i)
+	_refresh_bench()
+
+func _on_attachment(id: String) -> void:
+	var msg := ""
+	if jax.slots.has(id):
+		jax.unequip(jax.slots.find(id))
+	elif jax.owned.has(id):
+		if not jax.equip(id):
+			msg = "Both slots are full. Remove one first."
+	elif not jax.buy(id):
+		msg = "Not enough receipts."
+	_refresh_bench()
+	bench_msg.text = msg
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if choice_box.visible and event is InputEventKey and event.pressed:
-		match event.keycode:
-			KEY_1: choose(0)
-			KEY_2: choose(1)
-			KEY_3: choose(2)
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_C or (bench.visible and event.keycode == KEY_ESCAPE)):
+		toggle_bench()
+		return
