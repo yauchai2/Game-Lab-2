@@ -56,6 +56,7 @@ const SKYE_MODEL := preload("res://assets/characters/skye.glb")
 
 var char_id := "jax"
 var skill_name := "拆場"
+var skill_desc := "身邊範圍震擊"
 var skill_center := Vector3.ZERO
 
 func _ready() -> void:
@@ -78,6 +79,7 @@ func _give_starter_weapon() -> void:
 # Skye：遠程射擊、惡作劇彈（投向滑鼠位置的範圍攻擊）。
 func _become_skye() -> void:
 	skill_name = "惡作劇彈"
+	skill_desc = "投向滑鼠位置的範圍爆炸"
 	max_hp = 90
 	base_speed = 6.4
 	skill_windup = 0.2

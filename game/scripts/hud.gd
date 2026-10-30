@@ -14,30 +14,22 @@ var card_band := ColorRect.new()
 var card_title := Label.new()
 var card_sub := Label.new()
 var card_tween: Tween
-var bench := VBoxContainer.new()
-var bench_dim := ColorRect.new()
+const BenchScript := preload("res://game/scripts/bench.gd")
+var bench := Control.new()
+var skill_boxes := {}
 var boss_back := ColorRect.new()
 var boss_fill := ColorRect.new()
 var boss_label := Label.new()
-var bench_msg := Label.new()
-var selected_uid := -1
-var bench_tab := "attach"
 
 @onready var jax: Node = get_parent().get_node("Jax")
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	bench.position = Vector2(40, 34)
-	bench.add_theme_constant_override("separation", 1)
-	bench.custom_minimum_size = Vector2(520, 0)
-	bench.visible = false
-	bench_dim.color = Color(0.1, 0.11, 0.15, 0.78)
-	bench_dim.size = Vector2(640, 360)
-	bench_dim.visible = false
-	add_child(bench_dim)
+	bench.set_script(BenchScript)
+	bench.jax = jax
 	add_child(bench)
 	boss_back.color = Color("292D3B")
-	boss_back.position = Vector2(220, 340)
+	boss_back.position = Vector2(430, 8)
 	boss_back.size = Vector2(202, 10)
 	boss_back.visible = false
 	add_child(boss_back)
@@ -47,7 +39,7 @@ func _ready() -> void:
 	boss_back.add_child(boss_fill)
 	boss_fill.position = Vector2(1, 1)
 	boss_label.add_theme_font_size_override("font_size", 10)
-	boss_label.position = Vector2(220, 326)
+	boss_label.position = Vector2(430, 18)
 	boss_label.visible = false
 	add_child(boss_label)
 	hp_back.color = Color("292D3B")
@@ -69,6 +61,7 @@ func _ready() -> void:
 	info.position = Vector2(8, 28)
 	info.add_theme_font_size_override("font_size", 10)
 	add_child(info)
+	_build_skill_bar()
 	lines.set_script(load("res://game/scripts/speed_lines.gd"))
 	add_child(lines)
 	card_band.color = Color(0.16, 0.18, 0.23, 0.8)
@@ -104,10 +97,8 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	hp_fill.size.x = BAR_SIZE.x * float(jax.hp) / float(jax.max_hp)
 	xp_fill.size.x = BAR_SIZE.x * float(jax.xp) / float(jax.xp_to_next())
-	var cd: float = jax.skill_timer
-	var skill := "就緒" if cd <= 0.0 else "%.1fs" % cd
-	var dash: String = "就緒" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
-	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d\n%s［Q／右鍵］：%s   衝刺［空白鍵］：%s   工作枱［C］  音樂［M］" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts, jax.skill_name, skill, dash]
+	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts]
+	_update_skill_bar()
 	var b: Variant = get_parent().boss
 	var boss_alive: bool = b != null and is_instance_valid(b) and b.hp > 0 and b.awake
 	boss_back.visible = boss_alive
@@ -126,131 +117,66 @@ func _process(_delta: float) -> void:
 
 func toggle_bench() -> void:
 	if bench.visible:
-		bench.visible = false
-		bench_dim.visible = false
+		bench.close()
 		get_tree().paused = false
 	elif not jax.dead:
-		bench.visible = true
-		bench_dim.visible = true
-		move_child(bench_dim, get_child_count() - 1)
 		move_child(bench, get_child_count() - 1)
+		bench.open()
 		get_tree().paused = true
-		bench_msg.text = ""
-		_refresh_bench()
 
-func _bench_label(text: String, size := 10) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_outline_color", Color("292D3B"))
-	l.add_theme_constant_override("outline_size", 4)
-	return l
+# ---------- 底部技能列 ----------
 
-func _bench_button(text: String, handler: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.add_theme_font_size_override("font_size", 10)
-	for st in ["normal", "hover", "pressed", "disabled"]:
-		var box := StyleBoxFlat.new()
-		box.bg_color = Color(0.16, 0.18, 0.23, 0.92) if st != "hover" else Color(0.28, 0.32, 0.4, 0.95)
-		box.content_margin_top = 0
-		box.content_margin_bottom = 0
-		box.content_margin_left = 4
-		b.add_theme_stylebox_override(st, box)
-	b.custom_minimum_size = Vector2(0, 13)
-	b.pressed.connect(handler)
-	return b
+const SKILL_BOX := Vector2(96, 30)
 
-const RARITY_COLORS := [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")]
+func _build_skill_bar() -> void:
+	var defs := [["skill", "Q"], ["dash", "空白"], ["weapon", "自動"]]
+	for i in defs.size():
+		var back := ColorRect.new()
+		back.color = Color(0.16, 0.18, 0.23, 0.85)
+		back.size = SKILL_BOX
+		back.position = Vector2(320 - 150 + i * 102, 326)
+		add_child(back)
+		var cool := ColorRect.new()
+		cool.color = Color(0.05, 0.06, 0.09, 0.7)
+		cool.size = Vector2(SKILL_BOX.x, 0)
+		cool.position = Vector2(0, SKILL_BOX.y)
+		cool.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		back.add_child(cool)
+		var key := Label.new()
+		key.text = defs[i][1]
+		key.position = Vector2(2, -1)
+		key.add_theme_font_size_override("font_size", 8)
+		key.add_theme_color_override("font_color", Color("D6D573"))
+		back.add_child(key)
+		var title := Label.new()
+		title.position = Vector2(2, 6)
+		title.add_theme_font_size_override("font_size", 10)
+		back.add_child(title)
+		var sub := Label.new()
+		sub.position = Vector2(2, 17)
+		sub.add_theme_font_size_override("font_size", 8)
+		sub.add_theme_color_override("font_color", Color("9AA3AD"))
+		back.add_child(sub)
+		skill_boxes[defs[i][0]] = {"cool": cool, "title": title, "sub": sub}
 
-func _item_line(it: Dictionary) -> String:
-	var line: String = jax.item_name(it)
-	var affixes: String = jax.item_affix_text(it)
-	return line + ("  (" + affixes + ")" if affixes != "" else "")
+func _set_box(id: String, title: String, sub: String, remain: float, total: float) -> void:
+	var box: Dictionary = skill_boxes[id]
+	box["title"].text = title
+	box["sub"].text = sub
+	box["cool"].size.y = SKILL_BOX.y * clampf(remain / maxf(total, 0.01), 0.0, 1.0)
+	box["cool"].position.y = SKILL_BOX.y - box["cool"].size.y
+	box["title"].add_theme_color_override("font_color", Color("E7DFC9") if remain <= 0.0 else Color("9AA3AD"))
 
-const GEAR_NAMES := {"weapon": "武器", "head": "頭部", "body": "身體", "feet": "腳部", "trinket": "飾物"}
-const CART_TAGS := {"demolish": "Q", "skate": "衝", "weapon": "武", "head": "頭", "body": "身", "feet": "腳", "trinket": "飾"}
-const ATTACH_CARTS := ["demolish", "skate"]
-
-func _cart_name(cart: String) -> String:
-	if cart in GEAR_NAMES:
-		return GEAR_NAMES[cart]
-	return jax.skill_name + "（Q／右鍵）" if cart == "demolish" else "滑板衝刺（空白鍵）"
-
-func _in_tab(item_cart: String) -> bool:
-	return (item_cart in ATTACH_CARTS) == (bench_tab == "attach")
-
-func _on_tab(tab: String) -> void:
-	bench_tab = tab
-	_refresh_bench()
-
-func _refresh_bench() -> void:
-	for c in bench.get_children():
-		c.queue_free()
-	var head := HBoxContainer.new()
-	head.add_child(_bench_label("工作枱　單據 %d　（按 C 關閉）　" % jax.receipts, 12))
-	head.add_child(_bench_button("［卡匣配件］" if bench_tab == "attach" else "卡匣配件", _on_tab.bind("attach")))
-	head.add_child(_bench_button("［裝備］" if bench_tab == "gear" else "裝備", _on_tab.bind("gear")))
-	bench.add_child(head)
-	if bench_tab == "attach":
-		bench.add_child(_bench_label("先點選下方背包中的配件，再按「裝上」。［Q］拆場配件，［衝］衝刺配件。", 9))
-	else:
-		bench.add_child(_bench_label("裝備任何角色都能穿。武器決定普通攻擊（近戰／遠程），同欄位會直接替換。", 9))
-	for cart in jax.slots:
-		if not _in_tab(cart):
-			continue
-		for i in jax.slots[cart].size():
-			var it: Variant = jax.slots[cart][i]
-			var slot_text := "［%s］%s" % [CART_TAGS[cart], _cart_name(cart)]
-			if cart in ATTACH_CARTS:
-				slot_text += "　槽 %s" % "AB"[i]
-			var b := _bench_button("%s：%s" % [slot_text, _item_line(it) if it != null else "（空）"], _on_slot.bind(cart, i))
-			if it != null:
-				b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
-			bench.add_child(b)
-	bench.add_child(_bench_label("背包 %d/%d（點選物品）：" % [jax.inventory.size(), jax.INVENTORY_LIMIT]))
-	for it in jax.inventory:
-		var item_cart: String = jax.ITEM_TYPES[it["type"]]["cart"]
-		if not _in_tab(item_cart):
-			continue
-		var mark := ">" if it["uid"] == selected_uid else " "
-		var eq := "[E] " if not jax.slot_info(it["uid"]).is_empty() else ""
-		var b := _bench_button("%s %s[%s] %s" % [mark, eq, CART_TAGS[item_cart], _item_line(it)], _on_select.bind(it["uid"]))
-		b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
-		bench.add_child(b)
-	var row := HBoxContainer.new()
-	var sel: Variant = jax.find_item(selected_uid)
-	var equipped: bool = sel != null and not jax.slot_info(selected_uid).is_empty()
-	var rarity: int = sel["rarity"] if sel != null else 0
-	var up_text := "升級（%d）" % jax.UPGRADE_COSTS[rarity] if rarity < 2 else "升級（已滿）"
-	row.add_child(_bench_button("拆下" if equipped else "裝上", _act.bind("toggle_equip")))
-	row.add_child(_bench_button("重擲（%d）" % jax.REROLL_COST, _act.bind("reroll_item")))
-	row.add_child(_bench_button(up_text, _act.bind("upgrade_item")))
-	row.add_child(_bench_button("拆解（+1）", _act.bind("scrap_item")))
-	for b in row.get_children():
-		b.disabled = sel == null
-	bench.add_child(row)
-	bench_msg = _bench_label("")
-	bench.add_child(bench_msg)
-
-func _on_slot(cart: String, i: int) -> void:
-	var it: Variant = jax.slots[cart][i]
-	if it != null:
-		jax.toggle_equip(it["uid"])
-	_refresh_bench()
-
-func _on_select(uid: int) -> void:
-	selected_uid = uid
-	_refresh_bench()
-
-func _act(method: String) -> void:
-	var msg: String = jax.call(method, selected_uid)
-	SFX.play(self, "ui_error" if msg != "" else "ui_click", -4.0)
-	if method == "scrap_item":
-		selected_uid = -1
-	_refresh_bench()
-	bench_msg.text = msg
+func _update_skill_bar() -> void:
+	var skill_sub: String = jax.slot_names("demolish")
+	var dash_sub: String = jax.slot_names("skate")
+	var w: Dictionary = jax.weapon_stats()
+	var cd: float = jax.skill_timer
+	var dcd: float = jax.dash_timer
+	_set_box("skill", jax.skill_name + ("" if cd <= 0.0 else "  %.1f" % cd), skill_sub if skill_sub != "" else "無配件", cd, jax.skill_cooldown)
+	_set_box("dash", "衝刺" + ("" if dcd <= 0.0 else "  %.1f" % dcd), dash_sub if dash_sub != "" else "無配件", dcd, jax.dash_cooldown)
+	var wi: Variant = jax.slots["weapon"][0]
+	_set_box("weapon", jax.item_name(wi) if wi != null else "空手", "近戰" if w["kind"] == "melee" else "遠程", 0.0, 1.0)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_C or (bench.visible and event.keycode == KEY_ESCAPE)):
