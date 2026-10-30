@@ -15,13 +15,14 @@ var card_sub := Label.new()
 var card_tween: Tween
 var bench := VBoxContainer.new()
 var bench_msg := Label.new()
+var selected_uid := -1
 
 @onready var jax: Node = get_parent().get_node("Jax")
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	bench.position = Vector2(120, 62)
-	bench.custom_minimum_size = Vector2(400, 0)
+	bench.position = Vector2(60, 62)
+	bench.custom_minimum_size = Vector2(520, 0)
 	bench.visible = false
 	add_child(bench)
 	hp_back.color = Color("292D3B")
@@ -81,8 +82,8 @@ func _process(_delta: float) -> void:
 	info.text = "Lv %d  HP %d/%d  Wave %d  Receipts %d\nDemolish [Q/RMB]: %s   Dash [Space]: %s   Cartridge [C]" % [jax.level, jax.hp, jax.max_hp, get_parent().wave, jax.receipts, skill, dash]
 	if jax.dead:
 		banner.text = "KO  -  press R to restart"
-	elif jax.levelup_flash > 0.0:
-		banner.text = "LEVEL UP!"
+	elif jax.levelup_flash > 0.0 and not bench.visible:
+		banner.text = jax.flash_text
 	else:
 		banner.text = ""
 
@@ -112,36 +113,60 @@ func _bench_button(text: String, handler: Callable) -> Button:
 	b.pressed.connect(handler)
 	return b
 
+const RARITY_COLORS := [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")]
+
+func _item_line(it: Dictionary) -> String:
+	var line: String = jax.item_name(it)
+	var affixes: String = jax.item_affix_text(it)
+	return line + ("  (" + affixes + ")" if affixes != "" else "")
+
 func _refresh_bench() -> void:
 	for c in bench.get_children():
 		c.queue_free()
 	bench.add_child(_bench_label("CARTRIDGE: DEMOLISH   Receipts %d   (C to close)" % jax.receipts, 12))
-	bench.add_child(_bench_label("Slots (click to remove):"))
+	bench.add_child(_bench_label("Slots (click to unequip):"))
 	for i in jax.slots.size():
-		var id: String = jax.slots[i]
-		var text := "Slot %s: %s" % ["AB"[i], jax.ATTACHMENTS[id]["name"] if id != "" else "(empty)"]
-		bench.add_child(_bench_button(text, _on_slot.bind(i)))
-	bench.add_child(_bench_label("Attachments (click to buy / equip):"))
-	for id in jax.ATTACHMENTS:
-		var a: Dictionary = jax.ATTACHMENTS[id]
-		var state := "EQUIPPED" if jax.slots.has(id) else ("owned" if jax.owned.has(id) else "%d receipts" % a["cost"])
-		bench.add_child(_bench_button("%s - %s  [%s]" % [a["name"], a["desc"], state], _on_attachment.bind(id)))
+		var it: Variant = jax.slots[i]
+		var b := _bench_button("Slot %s: %s" % ["AB"[i], _item_line(it) if it != null else "(empty)"], _on_slot.bind(i))
+		if it != null:
+			b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
+		bench.add_child(b)
+	bench.add_child(_bench_label("Inventory %d/%d (click to select):" % [jax.inventory.size(), jax.INVENTORY_LIMIT]))
+	for it in jax.inventory:
+		var mark := ">" if it["uid"] == selected_uid else " "
+		var eq := "[E] " if jax.slot_of(it["uid"]) >= 0 else ""
+		var b := _bench_button("%s %s%s" % [mark, eq, _item_line(it)], _on_select.bind(it["uid"]))
+		b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
+		bench.add_child(b)
+	var row := HBoxContainer.new()
+	var sel: Variant = jax.find_item(selected_uid)
+	var equipped: bool = sel != null and jax.slot_of(selected_uid) >= 0
+	var rarity: int = sel["rarity"] if sel != null else 0
+	var up_text := "Upgrade (%d)" % jax.UPGRADE_COSTS[rarity] if rarity < 2 else "Upgrade (max)"
+	row.add_child(_bench_button("Unequip" if equipped else "Equip", _act.bind("toggle_equip")))
+	row.add_child(_bench_button("Reroll (%d)" % jax.REROLL_COST, _act.bind("reroll_item")))
+	row.add_child(_bench_button(up_text, _act.bind("upgrade_item")))
+	row.add_child(_bench_button("Scrap (+1)", _act.bind("scrap_item")))
+	for b in row.get_children():
+		b.disabled = sel == null
+	bench.add_child(row)
 	bench_msg = _bench_label("")
 	bench.add_child(bench_msg)
 
 func _on_slot(i: int) -> void:
-	jax.unequip(i)
+	var it: Variant = jax.slots[i]
+	if it != null:
+		jax.toggle_equip(it["uid"])
 	_refresh_bench()
 
-func _on_attachment(id: String) -> void:
-	var msg := ""
-	if jax.slots.has(id):
-		jax.unequip(jax.slots.find(id))
-	elif jax.owned.has(id):
-		if not jax.equip(id):
-			msg = "Both slots are full. Remove one first."
-	elif not jax.buy(id):
-		msg = "Not enough receipts."
+func _on_select(uid: int) -> void:
+	selected_uid = uid
+	_refresh_bench()
+
+func _act(method: String) -> void:
+	var msg: String = jax.call(method, selected_uid)
+	if method == "scrap_item":
+		selected_uid = -1
 	_refresh_bench()
 	bench_msg.text = msg
 

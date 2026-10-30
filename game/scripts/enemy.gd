@@ -81,12 +81,16 @@ func _drop_loot() -> void:
 	_spawn_pickup("receipt", 2 if ranged else 1, Vector3(0, 0, 0.3))
 	if randf() < 0.35:
 		_spawn_pickup("hp", 20, Vector3(-0.3, 0, 0))
+	var player := get_tree().get_first_node_in_group("player")
+	if player and player.should_drop_item(ranged):
+		_spawn_pickup("item", 0, Vector3(0, 0, -0.3), player.random_item())
 
-func _spawn_pickup(kind: String, value: int, offset: Vector3) -> void:
+func _spawn_pickup(kind: String, value: int, offset: Vector3, item := {}) -> void:
 	var p := Node3D.new()
 	p.set_script(PICKUP)
 	p.kind = kind
 	p.value = value
+	p.item = item
 	get_parent().add_child(p)
 	p.global_position = global_position + offset + Vector3(0, 0.5, 0)
 
