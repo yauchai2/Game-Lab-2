@@ -43,6 +43,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	mat.set_shader_parameter("k", K)
+	var vs := get_viewport().get_visible_rect().size
+	mat.set_shader_parameter("aspect", vs.x / vs.y)
 	rect.visible = enabled
 
 func _unhandled_input(event: InputEvent) -> void:

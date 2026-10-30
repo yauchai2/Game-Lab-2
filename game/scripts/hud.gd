@@ -4,6 +4,11 @@ const SFX := preload("res://game/scripts/sfx.gd")
 const BAR_SIZE := Vector2(140, 8)
 
 var orb := Control.new()
+var zone_tr: Control
+var zone_bl: Control
+var zone_bc: Control
+var zone_br: Control
+var zone_c: Control
 var hurt_overlay := ColorRect.new()
 var break_back := ColorRect.new()
 var break_fill := ColorRect.new()
@@ -26,16 +31,36 @@ var boss_label := Label.new()
 
 @onready var jax: Node = get_parent().get_node("Jax")
 
+# 介面分區：低解像度畫面會隨視窗大小擴展，所以介面貼住畫面邊角（每區是 640×360 的座標系）。
+func _zone(ax: float, ay: float) -> Control:
+	var z := Control.new()
+	z.anchor_left = ax
+	z.anchor_right = ax
+	z.anchor_top = ay
+	z.anchor_bottom = ay
+	z.offset_left = -640.0 * ax
+	z.offset_right = 640.0 * (1.0 - ax)
+	z.offset_top = -360.0 * ay
+	z.offset_bottom = 360.0 * (1.0 - ay)
+	z.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(z)
+	return z
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	zone_tr = _zone(1.0, 0.0)
+	zone_bl = _zone(0.0, 1.0)
+	zone_bc = _zone(0.5, 1.0)
+	zone_br = _zone(1.0, 1.0)
+	zone_c = _zone(0.5, 0.5)
 	bench.set_script(BenchScript)
 	bench.jax = jax
-	add_child(bench)
+	zone_c.add_child(bench)
 	boss_back.color = Color("292D3B")
 	boss_back.position = Vector2(430, 8)
 	boss_back.size = Vector2(202, 10)
 	boss_back.visible = false
-	add_child(boss_back)
+	zone_tr.add_child(boss_back)
 	boss_fill.color = Color("D6D573")
 	boss_fill.position = Vector2(221, 9)
 	boss_fill.size = Vector2(200, 8)
@@ -44,7 +69,7 @@ func _ready() -> void:
 	boss_label.add_theme_font_size_override("font_size", 10)
 	boss_label.position = Vector2(430, 30)
 	boss_label.visible = false
-	add_child(boss_label)
+	zone_tr.add_child(boss_label)
 	hurt_overlay.color = Color(0.8, 0.1, 0.08, 0.0)
 	hurt_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hurt_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -53,12 +78,12 @@ func _ready() -> void:
 	orb.position = Vector2(8, 300)
 	orb.size = Vector2(56, 56)
 	orb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(orb)
+	zone_bl.add_child(orb)
 	break_back.color = Color("292D3B")
 	break_back.position = Vector2(430, 22)
 	break_back.size = Vector2(202, 5)
 	break_back.visible = false
-	add_child(break_back)
+	zone_tr.add_child(break_back)
 	break_fill.color = Color("9FB6E8")
 	break_fill.position = Vector2(1, 1)
 	break_fill.size = Vector2(0, 3)
@@ -66,7 +91,7 @@ func _ready() -> void:
 	break_label.add_theme_font_size_override("font_size", 8)
 	break_label.position = Vector2(560, 30)
 	break_label.visible = false
-	add_child(break_label)
+	zone_tr.add_child(break_label)
 	xp_back.color = Color("292D3B")
 	xp_back.position = Vector2(8, 20)
 	xp_back.size = Vector2(BAR_SIZE.x + 2, 5)
@@ -87,7 +112,7 @@ func _ready() -> void:
 	card_band.position = Vector2(0, 100)
 	card_band.pivot_offset = Vector2(320, 17)
 	card_band.visible = false
-	add_child(card_band)
+	zone_c.add_child(card_band)
 	card_title.add_theme_font_size_override("font_size", 22)
 	card_title.add_theme_color_override("font_color", Color("CC6657"))
 	card_title.add_theme_color_override("font_outline_color", Color("E7DFC9"))
@@ -110,7 +135,7 @@ func _ready() -> void:
 	jax.slammed.connect(func(hits: int) -> void: lines.burst(clampf(0.5 + hits * 0.25, 0.5, 1.5)))
 	banner.position = Vector2(8, 150)
 	banner.add_theme_font_size_override("font_size", 20)
-	add_child(banner)
+	zone_c.add_child(banner)
 
 func _process(_delta: float) -> void:
 	hurt_overlay.color.a = jax.hurt_flash * 0.6
@@ -147,7 +172,7 @@ func toggle_bench() -> void:
 		bench.close()
 		get_tree().paused = false
 	elif not jax.dead and not get_tree().paused:
-		move_child(bench, get_child_count() - 1)
+		move_child(zone_c, get_child_count() - 1)
 		bench.open()
 		get_tree().paused = true
 
@@ -162,7 +187,7 @@ func _build_skill_bar() -> void:
 		back.color = Color(0.16, 0.18, 0.23, 0.85)
 		back.size = SKILL_BOX
 		back.position = Vector2(320 - defs.size() * 35 + i * 70, 326)
-		add_child(back)
+		zone_bc.add_child(back)
 		var cool := ColorRect.new()
 		cool.color = Color(0.05, 0.06, 0.09, 0.7)
 		cool.size = Vector2(SKILL_BOX.x, 0)
@@ -199,7 +224,7 @@ func _build_flasks() -> void:
 		back.color = Color(0.16, 0.18, 0.23, 0.85)
 		back.size = Vector2(40, 30)
 		back.position = Vector2(548 + i * 44, 326)
-		add_child(back)
+		zone_br.add_child(back)
 		var key := Label.new()
 		key.text = str(i + 1)
 		key.position = Vector2(2, -1)

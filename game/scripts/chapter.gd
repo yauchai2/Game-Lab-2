@@ -121,14 +121,30 @@ func _style_label(l: Label, font_px: int, color := Color("E7DFC9")) -> void:
 	l.add_theme_constant_override("outline_size", 4)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
+func _zone(ax: float, ay: float) -> Control:
+	var z := Control.new()
+	z.anchor_left = ax
+	z.anchor_right = ax
+	z.anchor_top = ay
+	z.anchor_bottom = ay
+	z.offset_left = -640.0 * ax
+	z.offset_right = 640.0 * (1.0 - ax)
+	z.offset_top = -360.0 * ay
+	z.offset_bottom = 360.0 * (1.0 - ay)
+	z.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(z)
+	return z
+
 func _build_ui() -> void:
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(overlay)
+	var zone_t := _zone(0.5, 0.0)
+	var zone_b := _zone(0.5, 1.0)
 	for l in [objective, hint, prompt, caption]:
 		l.size = Vector2(640, 16)
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		overlay.add_child(l)
+		(zone_t if l == objective or l == caption else zone_b).add_child(l)
 	objective.position = Vector2(0, 4)
 	_style_label(objective, 10, Color("75C7B0"))
 	hint.position = Vector2(0, 302)
@@ -141,7 +157,7 @@ func _build_ui() -> void:
 	dialog_back.position = Vector2(60, 246)
 	dialog_back.size = Vector2(520, 70)
 	dialog_back.visible = false
-	overlay.add_child(dialog_back)
+	zone_b.add_child(dialog_back)
 	dialog_name.position = Vector2(10, 4)
 	dialog_name.add_theme_font_size_override("font_size", 11)
 	dialog_name.add_theme_color_override("font_color", Color("D6D573"))
@@ -169,10 +185,11 @@ func _build_ui() -> void:
 	card_bg.visible = false
 	overlay.add_child(card_bg)
 	overlay.add_child(card_label)
+	var zone_c := _zone(0.5, 0.5)
 	choice_box.visible = false
-	overlay.add_child(choice_box)
+	zone_c.add_child(choice_box)
 	end_box.visible = false
-	overlay.add_child(end_box)
+	zone_c.add_child(end_box)
 
 # ---------- 字幕卡 ----------
 
@@ -320,7 +337,8 @@ func _show_end() -> void:
 	end_box.visible = true
 	var back := ColorRect.new()
 	back.color = Color("14161D")
-	back.set_anchors_preset(Control.PRESET_FULL_RECT)
+	back.position = Vector2(-4000, -4000)
+	back.size = Vector2(8640, 8360)
 	end_box.add_child(back)
 	var lines := [
 		["第一章　橋底街　完", 22, Color("E7DFC9")],

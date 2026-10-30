@@ -45,7 +45,8 @@ func _ready() -> void:
 	visible = false
 	var dim := ColorRect.new()
 	dim.color = Color(0.02, 0.02, 0.03, 0.85)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.position = Vector2(-4000, -4000)
+	dim.size = Vector2(8640, 8360)
 	add_child(dim)
 	var panel := Panel.new()
 	panel.add_theme_stylebox_override("panel", _style(BG, GOLD, 2))
