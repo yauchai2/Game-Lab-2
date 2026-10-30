@@ -295,7 +295,7 @@ func _show_choice() -> void:
 	var back := ColorRect.new()
 	back.color = Color(0.1, 0.11, 0.15, 0.95)
 	back.position = Vector2(110, 120)
-	back.size = Vector2(420, 120)
+	back.size = Vector2(420, 150)
 	choice_box.add_child(back)
 	var q := Label.new()
 	q.text = "箱子裡有一批店家仍在使用的貨。"
@@ -308,16 +308,23 @@ func _show_choice() -> void:
 		["留下店家在用的貨", "Bo 保住工作枱，但清場組還會再來。", "keep"],
 	]
 	for i in opts.size():
+		var y := 160 + i * 52
 		var b := Button.new()
-		b.text = opts[i][0]
-		b.position = Vector2(130, 160 + i * 38)
-		b.size = Vector2(380, 32)
-		b.tooltip_text = opts[i][1]
+		b.position = Vector2(130, y)
+		b.size = Vector2(380, 46)
 		b.pressed.connect(_choose.bind(opts[i][2]))
 		choice_box.add_child(b)
+		var t := Label.new()
+		t.text = opts[i][0]
+		t.position = Vector2(130, y + 4)
+		t.size = Vector2(380, 20)
+		t.add_theme_font_size_override("font_size", 12)
+		t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		choice_box.add_child(t)
 		var d := Label.new()
 		d.text = opts[i][1]
-		d.position = Vector2(130, 175 + i * 38)
+		d.position = Vector2(130, y + 26)
 		d.size = Vector2(380, 14)
 		d.add_theme_font_size_override("font_size", 8)
 		d.add_theme_color_override("font_color", Color("9AA3AD"))
