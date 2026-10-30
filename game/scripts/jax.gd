@@ -151,6 +151,12 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 	var move := Vector3.ZERO
+	# Hold the left mouse button to keep walking toward the cursor.
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and windup_left < 0.0 and dash_left <= 0.0:
+		var held: Variant = _pick_point(get_viewport().get_mouse_position())
+		if held != null:
+			target = held
+			has_target = true
 	if dash_left > 0.0:
 		dash_left -= delta
 		move = dash_dir * dash_speed

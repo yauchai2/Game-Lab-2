@@ -6,6 +6,7 @@ extends CharacterBody3D
 @export var attack_damage := 5
 @export var attack_cooldown := 1.2
 @export var gravity := 20.0
+@export var ranged := false
 @export var base_color := Color("8C9871")
 
 var hp := 40
@@ -14,6 +15,7 @@ var knockback := Vector3.ZERO
 var _material := StandardMaterial3D.new()
 
 const PICKUP := preload("res://game/scripts/pickup.gd")
+const PROJECTILE := preload("res://game/scripts/projectile.gd")
 
 @onready var mesh: MeshInstance3D = $Mesh
 
@@ -53,7 +55,15 @@ func _physics_process(delta: float) -> void:
 		var to: Vector3 = player.global_position - global_position
 		to.y = 0.0
 		var dist := to.length()
-		if dist > attack_range:
+		if ranged:
+			if dist > 9.0:
+				move = to.normalized() * speed
+			elif dist < 5.0:
+				move = -to.normalized() * speed * 0.8
+			if dist <= 11.0 and cooldown <= 0.0:
+				cooldown = 2.0
+				_shoot(to.normalized())
+		elif dist > attack_range:
 			move = to.normalized() * speed
 		elif cooldown <= 0.0:
 			cooldown = attack_cooldown
@@ -78,3 +88,10 @@ func _spawn_pickup(kind: String, value: int, offset: Vector3) -> void:
 	p.value = value
 	get_parent().add_child(p)
 	p.global_position = global_position + offset + Vector3(0, 0.5, 0)
+
+func _shoot(dir: Vector3) -> void:
+	var b := Node3D.new()
+	b.set_script(PROJECTILE)
+	b.direction = dir
+	get_parent().add_child(b)
+	b.global_position = global_position + Vector3(0, 1.0, 0) + dir * 0.8
