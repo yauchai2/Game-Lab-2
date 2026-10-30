@@ -120,7 +120,8 @@
 | 通關 | victory |
 | 工作枱操作／失敗 | ui_click／ui_error |
 
-想改音效：改腳本後執行 `python3 tools/audio/make_sfx.py` 重新輸出。音效播放寫在 `game/scripts/sfx.gd`，各事件處呼叫 `SFX.play(self, "名稱")`。目前沒有背景音樂。
+想改音效：改腳本後執行 `python3 tools/audio/make_sfx.py` 重新輸出。音效播放寫在 `game/scripts/sfx.gd`，各事件處呼叫 `SFX.play(self, "名稱")`。
+**背景音樂：** 探索時播放「Dark City」，頭目醒來後換成「Dark Forces」，通關或倒下時停止；按 **M** 可開關。兩首都來自 OpenGameArt（CC0，可商用、無須署名），出處記在 `docs/art/asset-spec.md`。我無法聽音樂，是憑節奏與響度挑選，不合意可以直接換掉。
 
 ## 頭目同通關
 

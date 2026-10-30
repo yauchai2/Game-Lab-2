@@ -69,3 +69,6 @@ File → Export → glTF 2.0 (.glb)。設定：Format 揀 **glTF Binary (.glb)**
 | 檔案 | 來源網址 | 作者 | 授權 |
 |---|---|---|---|
 | `assets/characters/jax.glb` | 本專案自製（`tools/blender/make_jax.py`） | Game Lab 2 | 自有 |
+| `assets/audio/music/explore-dark-city.ogg`（探索背景音樂，原檔 mp3 轉 ogg） | https://opengameart.org/content/dark-city-0 | cinameng | CC0 |
+| `assets/audio/music/boss-dark-forces.ogg`（頭目戰背景音樂，原檔 mp3 轉 ogg） | https://opengameart.org/content/dark-forcesloop | Pro Sensory | CC0 |
+| `assets/audio/sfx/*.wav` | 本專案自製（`tools/audio/make_sfx.py`） | Game Lab 2 | 自有 |

@@ -106,7 +106,7 @@ func _process(_delta: float) -> void:
 	var cd: float = jax.skill_timer
 	var skill := "就緒" if cd <= 0.0 else "%.1fs" % cd
 	var dash: String = "就緒" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
-	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d\n拆場［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts, skill, dash]
+	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d\n拆場［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］  音樂［M］" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts, skill, dash]
 	var b: Variant = get_parent().boss
 	var boss_alive: bool = b != null and is_instance_valid(b) and b.hp > 0
 	boss_back.visible = boss_alive
