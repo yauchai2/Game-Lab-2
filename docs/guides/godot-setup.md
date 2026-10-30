@@ -55,7 +55,9 @@
 
 ## 卡匣配件（隨機掉落 + 砌 build）
 
-「拆場」卡匣有 2 個配件槽。**配件係敵人隨機掉落**（大方塊，顏色代表稀有度：白 Normal、藍 Magic、黃 Rare），行近自動拾取入背包（上限 12 件）。頭 2 隻敵人必掉一件。
+現時有 2 張卡匣，每張 2 個配件槽：**拆場 Demolish**（Q／右鍵）同 **滑板衝刺 Skate**（Space）。**配件係敵人隨機掉落**（大方塊，顏色代表稀有度：白 Normal、藍 Magic、黃 Rare），行近自動拾取入背包（上限 10 件）。頭 2 隻敵人必掉一件。
+
+**拆場配件（8 款）**
 
 | 配件 | 效果 |
 |---|---|
@@ -63,13 +65,26 @@
 | Echo Slam | 連擊（Rare 連 3 下） |
 | Scorch Zone | 留下持續傷害區 |
 | Time Bomb | 延遲爆發，範圍更闊、傷害更高 |
+| Gut Punch | 擊飛敵人 |
+| Black Hole | 先將敵人吸向中心再爆 |
+| Chain Reaction | 被打中嘅敵人再爆炸，波及附近 |
+| Adrenaline | 每擊中一隻敵人縮短冷卻 |
+
+**衝刺配件（4 款）**
+
+| 配件 | 效果 |
+|---|---|
+| Flame Trail | 衝刺路上留下火焰區 |
+| Grind Strike | 衝刺穿過敵人造成傷害 |
+| Double Dash | 多衝一次 |
+| Afterimage | 無敵時間加長 |
 
 稀有度愈高，效果愈強（Magic +15%、Rare +30%），而且帶隨機詞綴：Magic 1 條、Rare 2 條（+傷害%、+範圍、-冷卻%）。
 
 按 **C** 打開工作枱（遊戲暫停）：
-- 點背包配件選取，按 **Equip／Unequip** 裝上或拆下；點上面嘅槽可以直接拆走。
+- 點背包配件選取，按 **Equip／Unequip** 裝上或拆下（自動裝入對應卡匣）；點上面嘅槽可以直接拆走。
 - **單據**用途：**Reroll（2）** 重擲詞綴（Magic／Rare）、**Upgrade（3／6）** 升稀有度（Normal→Magic→Rare，詞綴重新抽）、**Scrap（+1）** 拆解配件換 1 單據。
-- 兩個配件可以疊加，例如 Echo Slam + Time Bomb。
+- 配件可以疊加，例如 Echo Slam + Time Bomb、Flame Trail + Double Dash。
 
 ## 打擊演出
 

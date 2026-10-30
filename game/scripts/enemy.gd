@@ -25,14 +25,14 @@ func _ready() -> void:
 	_material.albedo_color = base_color
 	mesh.material_override = _material
 
-func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO) -> void:
+func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) -> void:
 	if hp <= 0:
 		return
 	hp -= amount
 	var away := global_position - from_pos
 	away.y = 0.0
 	if away.length() > 0.01:
-		knockback = away.normalized() * 6.0
+		knockback = away.normalized() * knock
 	_material.albedo_color = Color.WHITE
 	var tween := create_tween()
 	tween.tween_property(_material, "albedo_color", base_color, 0.2)

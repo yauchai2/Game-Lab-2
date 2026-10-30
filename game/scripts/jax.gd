@@ -28,12 +28,17 @@ signal slammed(hit_count: int)
 
 var receipts := 0
 var inventory: Array = []
-var slots: Array = [null, null]
+var slots := {"demolish": [null, null], "skate": [null, null]}
 var next_uid := 1
 var item_rolls := 0
 var dash_left := 0.0
 var dash_timer := 0.0
 var dash_dir := Vector3.ZERO
+var iframe_left := 0.0
+var dash_extra := 0
+var dash_extra_time := 0.0
+var dash_hit: Array = []
+var trail_accum := 0.0
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -64,10 +69,18 @@ const ZONE := preload("res://game/scripts/zone.gd")
 # --- Cartridge attachments: random drops with rarity, equipped into 2 slots ---
 
 const ITEM_TYPES := {
-	"heavy": {"name": "Heavy Stamp", "desc": "damage up, slower windup"},
-	"burst": {"name": "Echo Slam", "desc": "hits multiple times"},
-	"linger": {"name": "Scorch Zone", "desc": "leaves a damaging zone"},
-	"delay": {"name": "Time Bomb", "desc": "delayed blast, wider range"},
+	"heavy": {"name": "Heavy Stamp", "desc": "damage up, slower windup", "cart": "demolish"},
+	"burst": {"name": "Echo Slam", "desc": "hits multiple times", "cart": "demolish"},
+	"linger": {"name": "Scorch Zone", "desc": "leaves a damaging zone", "cart": "demolish"},
+	"delay": {"name": "Time Bomb", "desc": "delayed blast, wider range", "cart": "demolish"},
+	"knock": {"name": "Gut Punch", "desc": "huge knockback", "cart": "demolish"},
+	"vacuum": {"name": "Black Hole", "desc": "pulls enemies in before the hit", "cart": "demolish"},
+	"chain": {"name": "Chain Reaction", "desc": "kills explode", "cart": "demolish"},
+	"frenzy": {"name": "Adrenaline", "desc": "each hit trims cooldown", "cart": "demolish"},
+	"trail": {"name": "Flame Trail", "desc": "dash leaves fire behind", "cart": "skate"},
+	"grind": {"name": "Grind Strike", "desc": "dash hurts what you pass", "cart": "skate"},
+	"double": {"name": "Double Dash", "desc": "a second dash right away", "cart": "skate"},
+	"ghost": {"name": "Afterimage", "desc": "extra safe time after dashing", "cart": "skate"},
 }
 const RARITY_NAMES := ["Normal", "Magic", "Rare"]
 const RARITY_WEIGHTS := [70, 25, 5]
@@ -76,7 +89,7 @@ const AFFIXES := {
 	"range": {"min": 0.3, "max": 0.8, "text": "+%.1fm range"},
 	"cd": {"min": 5.0, "max": 12.0, "text": "-%d%% cooldown"},
 }
-const INVENTORY_LIMIT := 12
+const INVENTORY_LIMIT := 10
 const REROLL_COST := 2
 const UPGRADE_COSTS := [3, 6]
 
@@ -133,26 +146,37 @@ func find_item(uid: int) -> Variant:
 			return it
 	return null
 
-func slot_of(uid: int) -> int:
-	for i in slots.size():
-		if slots[i] != null and slots[i]["uid"] == uid:
-			return i
-	return -1
+# Returns {"cart": ..., "idx": ...} for an equipped item, or an empty dictionary.
+func slot_info(uid: int) -> Dictionary:
+	for cart in slots:
+		for i in slots[cart].size():
+			var it: Variant = slots[cart][i]
+			if it != null and it["uid"] == uid:
+				return {"cart": cart, "idx": i}
+	return {}
 
 func item_in_slots(type: String) -> Variant:
-	for it in slots:
-		if it != null and it["type"] == type:
-			return it
+	for cart in slots:
+		for it in slots[cart]:
+			if it != null and it["type"] == type:
+				return it
 	return null
 
-func affix_total(kind: String) -> float:
+func affix_total(kind: String, cart: String) -> float:
 	var total := 0.0
-	for it in slots:
+	for it in slots[cart]:
 		if it != null:
 			for a in it["affixes"]:
 				if a["kind"] == kind:
 					total += a["value"]
 	return total
+
+func slot_names(cart: String) -> String:
+	var names: Array[String] = []
+	for it in slots[cart]:
+		if it != null:
+			names.append(item_name(it).to_upper())
+	return " + ".join(names)
 
 func add_item(item: Dictionary) -> bool:
 	if inventory.size() >= INVENTORY_LIMIT:
@@ -166,17 +190,18 @@ func add_item(item: Dictionary) -> bool:
 
 # Bench actions return an empty string on success, or a message for the player.
 func toggle_equip(uid: int) -> String:
-	var i := slot_of(uid)
-	if i >= 0:
-		slots[i] = null
+	var info := slot_info(uid)
+	if not info.is_empty():
+		slots[info["cart"]][info["idx"]] = null
 		return ""
 	var item: Variant = find_item(uid)
 	if item == null:
 		return ""
-	var free := slots.find(null)
+	var cart: String = ITEM_TYPES[item["type"]]["cart"]
+	var free: int = slots[cart].find(null)
 	if free < 0:
-		return "Both slots are full. Unequip one first."
-	slots[free] = item
+		return "Both %s slots are full. Unequip one first." % cart
+	slots[cart][free] = item
 	return ""
 
 func reroll_item(uid: int) -> String:
@@ -207,9 +232,9 @@ func scrap_item(uid: int) -> String:
 	var item: Variant = find_item(uid)
 	if item == null:
 		return ""
-	var i := slot_of(uid)
-	if i >= 0:
-		slots[i] = null
+	var info := slot_info(uid)
+	if not info.is_empty():
+		slots[info["cart"]][info["idx"]] = null
 	inventory.erase(item)
 	receipts += 1
 	return ""
@@ -218,7 +243,7 @@ func heal(amount: int) -> void:
 	hp = mini(hp + amount, max_hp)
 
 func take_damage(amount: int) -> void:
-	if dead or dash_left > 0.0:
+	if dead or iframe_left > 0.0:
 		return
 	hp = maxi(hp - amount, 0)
 	if hp == 0:
@@ -257,7 +282,10 @@ func _pick_point(screen_pos: Vector2) -> Variant:
 
 # Skateboard dash: a quick burst toward the cursor, invulnerable while it lasts.
 func dash(toward: Variant = null) -> void:
-	if dead or dash_timer > 0.0 or windup_left >= 0.0:
+	if dead or windup_left >= 0.0 or dash_left > 0.0:
+		return
+	var extra_ok := dash_extra > 0 and dash_extra_time > 0.0
+	if dash_timer > 0.0 and not extra_ok:
 		return
 	var dir := -global_transform.basis.z
 	if toward != null:
@@ -267,12 +295,49 @@ func dash(toward: Variant = null) -> void:
 			dir = d.normalized()
 	dir.y = 0.0
 	dash_dir = dir.normalized()
-	dash_left = dash_time
+	dash_left = dash_time + affix_total("range", "skate") / dash_speed
+	iframe_left = dash_left
+	var ghost: Variant = item_in_slots("ghost")
+	if ghost != null:
+		iframe_left += 0.5 * item_power(ghost)
+	dash_hit.clear()
+	trail_accum = 0.0
+	if extra_ok:
+		dash_extra -= 1
+	else:
+		dash_timer = dash_cooldown * (1.0 - affix_total("cd", "skate") / 100.0)
+		if item_in_slots("double") != null:
+			dash_extra = 1
+			dash_extra_time = 0.8
 	dashed.emit()
-	skill_cast.emit("SKATE DASH", "")
-	dash_timer = dash_cooldown
+	skill_cast.emit("SKATE DASH", slot_names("skate"))
 	has_target = false
 	look_at(global_position + dash_dir, Vector3.UP)
+
+# Riding effects while the dash is active (Grind Strike, Flame Trail).
+func _dash_effects(delta: float) -> void:
+	var grind: Variant = item_in_slots("grind")
+	if grind != null:
+		for enemy in get_tree().get_nodes_in_group("enemies"):
+			if dash_hit.has(enemy):
+				continue
+			var d: Vector3 = enemy.global_position - global_position
+			d.y = 0.0
+			if d.length() < 1.3:
+				dash_hit.append(enemy)
+				var dmg := skill_damage * 0.7 * item_power(grind) * (1.0 + affix_total("dmg", "skate") / 100.0)
+				enemy.take_damage(int(dmg), global_position, 9.0)
+				slammed.emit(1)
+				_hit_stop(0.05)
+				var cam := get_viewport().get_camera_3d()
+				if cam and cam.has_method("add_shake"):
+					cam.add_shake(0.2)
+	var trail: Variant = item_in_slots("trail")
+	if trail != null:
+		trail_accum += dash_speed * delta
+		if trail_accum >= 1.0:
+			trail_accum -= 1.0
+			_spawn_zone(global_position, 1.2, 2.5, int(6 * item_power(trail) * (1.0 + affix_total("dmg", "skate") / 100.0)), Color("CC6657"))
 
 # 拆場: short windup, then a shockwave that hits every enemy in range.
 func use_skill() -> void:
@@ -280,22 +345,23 @@ func use_skill() -> void:
 		return
 	has_target = false
 	windup_left = skill_windup + (0.2 if item_in_slots("heavy") != null else 0.0)
-	var names: Array[String] = []
-	for it in slots:
-		if it != null:
-			names.append(item_name(it).to_upper())
-	skill_cast.emit("DEMOLISH", " + ".join(names))
-	skill_timer = skill_cooldown * (1.0 - affix_total("cd") / 100.0)
+	skill_cast.emit("DEMOLISH", slot_names("demolish"))
+	skill_timer = skill_cooldown * (1.0 - affix_total("cd", "demolish") / 100.0)
 
 func _slam() -> void:
-	var dmg := float(skill_damage) * (1.0 + affix_total("dmg") / 100.0)
-	var radius := skill_radius + affix_total("range")
+	var dmg := float(skill_damage) * (1.0 + affix_total("dmg", "demolish") / 100.0)
+	var radius := skill_radius + affix_total("range", "demolish")
 	var hits := 1
 	var delay := 0.0
+	var opts := {"knock": 6.0, "vacuum": 0.0, "chain": 0.0, "frenzy": 0.0}
 	var heavy: Variant = item_in_slots("heavy")
 	var delayed: Variant = item_in_slots("delay")
 	var burst: Variant = item_in_slots("burst")
 	var linger: Variant = item_in_slots("linger")
+	var knock: Variant = item_in_slots("knock")
+	var vacuum: Variant = item_in_slots("vacuum")
+	var chain: Variant = item_in_slots("chain")
+	var frenzy: Variant = item_in_slots("frenzy")
 	if heavy != null:
 		dmg *= 1.0 + 0.5 * item_power(heavy)
 	if delayed != null:
@@ -305,26 +371,47 @@ func _slam() -> void:
 	if burst != null:
 		hits = 3 if burst["rarity"] == 2 else 2
 		dmg *= (0.6 if hits == 2 else 0.5) * item_power(burst)
+	if knock != null:
+		opts["knock"] = 15.0 * item_power(knock)
+	if vacuum != null:
+		opts["vacuum"] = 2.0 * item_power(vacuum)
+	if chain != null:
+		opts["chain"] = dmg * 0.5 * item_power(chain)
+	if frenzy != null:
+		opts["frenzy"] = 0.25 * item_power(frenzy)
 	var center := global_position
 	for h in hits:
 		var t := delay + h * 0.35
 		if t <= 0.0:
-			_impact(center, int(dmg), radius)
+			_impact(center, int(dmg), radius, opts)
 		else:
-			get_tree().create_timer(t, false).timeout.connect(_impact.bind(center, int(dmg), radius))
+			get_tree().create_timer(t, false).timeout.connect(_impact.bind(center, int(dmg), radius, opts))
 	if delay > 0.0:
 		_spawn_zone(center, radius, delay, 0, Color("D6D573"))
 	if linger != null:
 		_spawn_zone(center, 2.0, 3.0 + 0.5 * linger["rarity"], int(8 * item_power(linger)), Color("CC6657"))
 
-func _impact(center: Vector3, dmg: int, radius: float) -> void:
+func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void:
 	var hit_count := 0
+	var kills: Array[Vector3] = []
+	var pull: float = opts["vacuum"]
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var away: Vector3 = enemy.global_position - center
 		away.y = 0.0
-		if away.length() <= radius:
-			enemy.take_damage(dmg, center)
+		var dist := away.length()
+		if pull > 0.0 and dist > 1.0 and dist <= radius + pull:
+			enemy.global_position = Vector3(center.x, enemy.global_position.y, center.z) + away.normalized() * 1.0
+			dist = 1.0
+		if dist <= radius:
+			enemy.take_damage(dmg, center, opts["knock"])
 			hit_count += 1
+			if enemy.hp <= 0:
+				kills.append(enemy.global_position)
+	if opts["chain"] > 0.0:
+		for pos in kills:
+			_explode(pos, 2.5, int(opts["chain"]))
+	if opts["frenzy"] > 0.0 and hit_count > 0:
+		skill_timer = maxf(skill_timer - opts["frenzy"] * hit_count, 0.0)
 	if hit_count > 0:
 		slammed.emit(hit_count)
 		_hit_stop(0.07)
@@ -332,6 +419,14 @@ func _impact(center: Vector3, dmg: int, radius: float) -> void:
 		if cam and cam.has_method("add_shake"):
 			cam.add_shake(minf(0.15 + hit_count * 0.05, 0.4))
 	_spawn_shockwave(center, radius)
+
+func _explode(pos: Vector3, radius: float, dmg: int) -> void:
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		var d: Vector3 = enemy.global_position - pos
+		d.y = 0.0
+		if d.length() <= radius:
+			enemy.take_damage(dmg, pos, 6.0)
+	_spawn_shockwave(pos, radius)
 
 # Brief freeze on impact: the cheap trick that makes hits feel heavy.
 func _hit_stop(duration: float) -> void:
@@ -368,6 +463,10 @@ func _spawn_shockwave(center: Vector3, radius: float) -> void:
 func _physics_process(delta: float) -> void:
 	skill_timer = maxf(skill_timer - delta, 0.0)
 	dash_timer = maxf(dash_timer - delta, 0.0)
+	iframe_left = maxf(iframe_left - delta, 0.0)
+	dash_extra_time = maxf(dash_extra_time - delta, 0.0)
+	if dash_extra_time <= 0.0:
+		dash_extra = 0
 	levelup_flash = maxf(levelup_flash - delta, 0.0)
 	if dead:
 		velocity.x = 0.0
@@ -386,6 +485,7 @@ func _physics_process(delta: float) -> void:
 	if dash_left > 0.0:
 		dash_left -= delta
 		move = dash_dir * dash_speed
+		_dash_effects(delta)
 	elif windup_left >= 0.0:
 		windup_left -= delta
 		model.rotation.x = lerpf(model.rotation.x, -0.4, 0.4)
