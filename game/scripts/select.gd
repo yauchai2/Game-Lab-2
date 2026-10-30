@@ -5,9 +5,9 @@ const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
 const CHARACTERS := [
 	{"id": "jax", "name": "Jax　傑克斯", "model": "res://assets/characters/jax.glb",
-		"desc": "近身重擊，打碎一切\n拆場：身邊範圍震擊\n自動普攻：近戰\n生命較高"},
+		"desc": "近身重擊，打碎一切\n拆場：身邊範圍震擊\n起始武器：鐵管（近戰）\n生命較高"},
 	{"id": "skye", "name": "Skye　絲凱", "model": "res://assets/characters/skye.glb",
-		"desc": "遠程惡作劇，耍弄敵群\n惡作劇彈：投向滑鼠位置\n自動普攻：遠程射擊\n生命較低"},
+		"desc": "遠程惡作劇，耍弄敵群\n惡作劇彈：投向滑鼠位置\n起始武器：手槍（遠程）\n生命較低"},
 ]
 
 var spinners: Array[Node3D] = []

@@ -28,7 +28,9 @@ signal slammed(hit_count: int)
 
 var receipts := 0
 var inventory: Array = []
-var slots := {"demolish": [null, null], "skate": [null, null]}
+var slots := {"demolish": [null, null], "skate": [null, null], "weapon": [null], "head": [null], "body": [null], "feet": [null], "trinket": [null]}
+var base_speed := 6.0
+var gear_hp_bonus := 0
 var next_uid := 1
 var item_rolls := 0
 var dash_left := 0.0
@@ -41,9 +43,6 @@ var dash_hit: Array = []
 var trail_accum := 0.0
 var attack_timer := 0.0
 var attack_swing := 0.0
-@export var attack_cooldown := 0.55
-@export var attack_damage := 9
-@export var attack_radius := 2.2
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -65,13 +64,22 @@ func _ready() -> void:
 	if char_id == "skye":
 		_become_skye()
 	_load_progress()
+	if PROGRESS.data.is_empty():
+		_give_starter_weapon()
+	recalc_gear()
 	hp = max_hp
+
+# 起始武器：Jax 鐵管（近戰）、Skye 手槍（遠程）；之後可以隨意換。
+func _give_starter_weapon() -> void:
+	var w := make_item("pipe" if char_id == "jax" else "pistol", 0)
+	inventory.append(w)
+	slots["weapon"][0] = w
 
 # Skye：遠程射擊、惡作劇彈（投向滑鼠位置的範圍攻擊）。
 func _become_skye() -> void:
 	skill_name = "惡作劇彈"
 	max_hp = 90
-	speed = 6.4
+	base_speed = 6.4
 	skill_windup = 0.2
 	var fresh: Node3D = SKYE_MODEL.instantiate()
 	fresh.transform = model.transform
@@ -90,7 +98,7 @@ func save_progress(lose_half_receipts := true) -> void:
 	for cart in slots:
 		equipped[cart] = slots[cart].map(func(it: Variant) -> int: return -1 if it == null else it["uid"])
 	PROGRESS.data = {
-		"level": level, "xp": xp, "max_hp": max_hp, "skill_damage": skill_damage,
+		"level": level, "xp": xp, "max_hp": max_hp - gear_hp_bonus, "skill_damage": skill_damage,
 		"receipts": int(receipts * 0.5) if lose_half_receipts else receipts,
 		"inventory": inventory.duplicate(true), "equipped": equipped,
 		"next_uid": next_uid, "item_rolls": item_rolls,
@@ -103,6 +111,7 @@ func _load_progress() -> void:
 	level = d["level"]
 	xp = d["xp"]
 	max_hp = d["max_hp"]
+	gear_hp_bonus = 0
 	skill_damage = d["skill_damage"]
 	receipts = d["receipts"]
 	inventory = d["inventory"].duplicate(true)
@@ -145,26 +154,57 @@ const ITEM_TYPES := {
 	"grind": {"name": "磨擦衝撞", "desc": "衝刺穿過敵人造成傷害", "cart": "skate"},
 	"double": {"name": "雙重衝刺", "desc": "可以即刻再衝一次", "cart": "skate"},
 	"ghost": {"name": "殘影", "desc": "衝刺後無敵時間更長", "cart": "skate"},
+	# 裝備：任何角色都可以穿。武器決定普通攻擊的方式，其餘提供屬性。
+	"pipe": {"name": "鐵管", "cart": "weapon", "kind": "melee", "dmg": 10, "cd": 0.55, "reach": 2.2},
+	"gloves": {"name": "拳套", "cart": "weapon", "kind": "melee", "dmg": 6, "cd": 0.32, "reach": 1.8},
+	"pistol": {"name": "手槍", "cart": "weapon", "kind": "ranged", "dmg": 7, "cd": 0.4, "reach": 9.0},
+	"rifle": {"name": "步槍", "cart": "weapon", "kind": "ranged", "dmg": 13, "cd": 0.75, "reach": 11.0},
+	"shotgun": {"name": "散彈槍", "cart": "weapon", "kind": "ranged", "dmg": 6, "cd": 0.9, "reach": 6.0, "pellets": 3},
+	"cap": {"name": "冷帽", "cart": "head", "base": {"hp": 15}},
+	"goggles": {"name": "護目鏡", "cart": "head", "base": {"aspd": 10}},
+	"jacket": {"name": "工裝外套", "cart": "body", "base": {"hp": 30}},
+	"vest": {"name": "帆布背心", "cart": "body", "base": {"sdmg": 8}},
+	"sneakers": {"name": "厚底板鞋", "cart": "feet", "base": {"speed": 6}},
+	"springs": {"name": "彈跳鞋", "cart": "feet", "base": {"scd": 8}},
+	"ironchain": {"name": "粗鎖鏈", "cart": "trinket", "base": {"sdmg": 10}},
+	"watch": {"name": "懷錶", "cart": "trinket", "base": {"scd": 8}},
+	"charm": {"name": "幸運符", "cart": "trinket", "base": {"atk": 10}},
 }
+const GEAR_SLOTS := ["weapon", "head", "body", "feet", "trinket"]
 const RARITY_NAMES := ["普通", "魔法", "稀有"]
 const RARITY_WEIGHTS := [70, 25, 5]
 const AFFIXES := {
 	"dmg": {"min": 8.0, "max": 18.0, "text": "傷害 +%d%%"},
 	"range": {"min": 0.3, "max": 0.8, "text": "範圍 +%.1f米"},
 	"cd": {"min": 5.0, "max": 12.0, "text": "冷卻 -%d%%"},
+	"hp": {"min": 8.0, "max": 20.0, "text": "生命 +%d"},
+	"speed": {"min": 3.0, "max": 8.0, "text": "移速 +%d%%"},
+	"atk": {"min": 8.0, "max": 20.0, "text": "普攻傷害 +%d%%"},
+	"aspd": {"min": 6.0, "max": 15.0, "text": "普攻速度 +%d%%"},
+	"wrange": {"min": 0.3, "max": 0.8, "text": "射程 +%.1f米"},
+	"sdmg": {"min": 6.0, "max": 14.0, "text": "技能傷害 +%d%%"},
+	"scd": {"min": 4.0, "max": 10.0, "text": "技能冷卻 -%d%%"},
 }
-const INVENTORY_LIMIT := 10
+const POOL_ATTACH := ["dmg", "range", "cd"]
+const POOL_WEAPON := ["atk", "aspd", "wrange"]
+const POOL_GEAR := ["hp", "speed", "sdmg", "scd", "atk", "aspd"]
+const INVENTORY_LIMIT := 12
 const REROLL_COST := 2
 const UPGRADE_COSTS := [3, 6]
 
 func _roll_affix(kind: String) -> Dictionary:
 	var def: Dictionary = AFFIXES[kind]
 	var v := randf_range(def["min"], def["max"])
-	v = snappedf(v, 0.1) if kind == "range" else float(roundi(v))
+	v = snappedf(v, 0.1) if kind in ["range", "wrange"] else float(roundi(v))
 	return {"kind": kind, "value": v}
 
-func _roll_affixes(count: int) -> Array:
-	var kinds: Array = AFFIXES.keys()
+func is_gear(type: String) -> bool:
+	return ITEM_TYPES[type]["cart"] in GEAR_SLOTS
+
+func _roll_affixes(type: String, count: int) -> Array:
+	var kinds: Array = POOL_ATTACH.duplicate()
+	if is_gear(type):
+		kinds = (POOL_WEAPON if ITEM_TYPES[type]["cart"] == "weapon" else POOL_GEAR).duplicate()
 	kinds.shuffle()
 	var out: Array = []
 	for i in count:
@@ -172,7 +212,7 @@ func _roll_affixes(count: int) -> Array:
 	return out
 
 func make_item(type: String, rarity: int) -> Dictionary:
-	var item := {"uid": next_uid, "type": type, "rarity": rarity, "affixes": _roll_affixes(rarity)}
+	var item := {"uid": next_uid, "type": type, "rarity": rarity, "affixes": _roll_affixes(type, rarity)}
 	next_uid += 1
 	return item
 
@@ -185,8 +225,11 @@ func random_item() -> Dictionary:
 		rarity = 1
 	var types: Array = ITEM_TYPES.keys()
 	if item_rolls == 2:
-		# 第 2 件必定是衝刺配件，方便新手發現第二張卡匣。
+		# 第 2 件必定是衝刺配件，第 3 件必定是裝備，方便新手發現各系統。
 		types = types.filter(func(t: String) -> bool: return ITEM_TYPES[t]["cart"] == "skate")
+	else:
+		var want_gear := item_rolls == 3 or (item_rolls != 2 and randf() < 0.4)
+		types = types.filter(func(t: String) -> bool: return is_gear(t) == want_gear)
 	return make_item(types[randi() % types.size()], rarity)
 
 func should_drop_item(from_ranged: bool) -> bool:
@@ -200,6 +243,14 @@ func item_name(item: Dictionary) -> String:
 
 func item_affix_text(item: Dictionary) -> String:
 	var parts: Array[String] = []
+	var def: Dictionary = ITEM_TYPES[item["type"]]
+	if def["cart"] == "weapon":
+		var w := weapon_stats_of(item)
+		parts.append("%s・傷害 %d・%.2f秒" % ["近戰" if def["kind"] == "melee" else "遠程", roundi(w["dmg"]), w["cd"]])
+	elif def.has("base"):
+		for k in def["base"]:
+			var v: float = def["base"][k] * item_power(item)
+			parts.append(AFFIXES[k]["text"] % (v if k == "wrange" else roundi(v)))
 	for a in item["affixes"]:
 		parts.append(AFFIXES[a["kind"]]["text"] % a["value"])
 	return ", ".join(parts)
@@ -229,8 +280,49 @@ func item_in_slots(type: String) -> Variant:
 				return it
 	return null
 
+# 裝備提供嘅屬性總和（基礎屬性＋詞綴）。
+func gear_total(kind: String) -> float:
+	var total := 0.0
+	for slot in GEAR_SLOTS:
+		var it: Variant = slots[slot][0]
+		if it == null:
+			continue
+		var def: Dictionary = ITEM_TYPES[it["type"]]
+		if def.has("base") and def["base"].has(kind):
+			total += def["base"][kind] * item_power(it)
+		for a in it["affixes"]:
+			if a["kind"] == kind:
+				total += a["value"]
+	return total
+
+func weapon_stats_of(item: Variant) -> Dictionary:
+	var s := {"kind": "melee", "dmg": 5.0, "cd": 0.6, "reach": 1.6, "pellets": 1}
+	if item != null:
+		var d: Dictionary = ITEM_TYPES[item["type"]]
+		s = {"kind": d["kind"], "dmg": d["dmg"] * item_power(item), "cd": d["cd"], "reach": d["reach"], "pellets": d.get("pellets", 1)}
+	return s
+
+# 目前武器（含裝備詞綴、等級加成）。
+func weapon_stats() -> Dictionary:
+	var s := weapon_stats_of(slots["weapon"][0])
+	s["dmg"] *= (1.0 + gear_total("atk") / 100.0) * (1.0 + 0.04 * (level - 1))
+	s["cd"] /= 1.0 + gear_total("aspd") / 100.0
+	s["reach"] += gear_total("wrange")
+	return s
+
+func recalc_gear() -> void:
+	var bonus := roundi(gear_total("hp"))
+	max_hp += bonus - gear_hp_bonus
+	gear_hp_bonus = bonus
+	hp = mini(hp, max_hp)
+	speed = base_speed * (1.0 + gear_total("speed") / 100.0)
+
 func affix_total(kind: String, cart: String) -> float:
 	var total := 0.0
+	if kind == "dmg":
+		total += gear_total("sdmg")
+	elif kind == "cd":
+		total += gear_total("scd")
 	for it in slots[cart]:
 		if it != null:
 			for a in it["affixes"]:
@@ -261,11 +353,17 @@ func toggle_equip(uid: int) -> String:
 	if not info.is_empty():
 		slots[info["cart"]][info["idx"]] = null
 		SFX.play(self, "ui_click", -6.0)
+		recalc_gear()
 		return ""
 	var item: Variant = find_item(uid)
 	if item == null:
 		return ""
 	var cart: String = ITEM_TYPES[item["type"]]["cart"]
+	if cart in GEAR_SLOTS:
+		slots[cart][0] = item
+		recalc_gear()
+		SFX.play(self, "ui_click", -6.0)
+		return ""
 	var free: int = slots[cart].find(null)
 	if free < 0:
 		return "此卡匣兩個槽已滿，請先拆下一個。"
@@ -279,7 +377,8 @@ func reroll_item(uid: int) -> String:
 	if receipts < REROLL_COST:
 		return "單據不足。"
 	receipts -= REROLL_COST
-	item["affixes"] = _roll_affixes(item["rarity"])
+	item["affixes"] = _roll_affixes(item["type"], item["rarity"])
+	recalc_gear()
 	return ""
 
 func upgrade_item(uid: int) -> String:
@@ -293,7 +392,8 @@ func upgrade_item(uid: int) -> String:
 		return "單據不足。"
 	receipts -= cost
 	item["rarity"] += 1
-	item["affixes"] = _roll_affixes(item["rarity"])
+	item["affixes"] = _roll_affixes(item["type"], item["rarity"])
+	recalc_gear()
 	return ""
 
 func scrap_item(uid: int) -> String:
@@ -305,6 +405,7 @@ func scrap_item(uid: int) -> String:
 		slots[info["cart"]][info["idx"]] = null
 	inventory.erase(item)
 	receipts += 1
+	recalc_gear()
 	return ""
 
 func heal(amount: int) -> void:
@@ -594,42 +695,47 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_animate_limbs(delta, move.length() > 0.1 and dash_left <= 0.0)
 
-# 普通攻擊：附近有敵人就自動揮擊，傷害小、沒有字卡，邊走邊打。
+# 普通攻擊：由武器決定（近戰揮擊／遠程射擊），附近有敵人就自動出手，沒有字卡，邊走邊打。
 func _auto_attack() -> void:
 	if attack_timer > 0.0:
 		return
-	if char_id == "skye":
-		_shoot_nearest()
-		return
+	var w := weapon_stats()
+	if w["kind"] == "ranged":
+		_shoot_nearest(w)
+	else:
+		_melee_swing(w)
+
+func _melee_swing(w: Dictionary) -> void:
 	var hit := 0
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var d: Vector3 = enemy.global_position - global_position
 		d.y = 0.0
-		if d.length() <= attack_radius:
-			enemy.take_damage(attack_damage, global_position, 3.0)
+		if d.length() <= w["reach"]:
+			enemy.take_damage(roundi(w["dmg"]), global_position, 3.0)
 			hit += 1
 	if hit == 0:
 		return
-	attack_timer = attack_cooldown
+	attack_timer = w["cd"]
 	attack_swing = 1.0
 	SFX.play(self, "hit", -8.0, 0.12)
-	_spawn_shockwave(global_position, attack_radius, Color("E7DFC9"), 0.18)
+	_spawn_shockwave(global_position, w["reach"], Color("E7DFC9"), 0.18)
 
-func _shoot_nearest() -> void:
-	var best: Node3D = null
-	var best_d := 9.0
+func _shoot_nearest(w: Dictionary) -> void:
+	var targets: Array = []
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var d: float = enemy.global_position.distance_to(global_position)
-		if d < best_d:
-			best_d = d
-			best = enemy
-	if best == null:
+		if d <= w["reach"]:
+			targets.append([d, enemy])
+	if targets.is_empty():
 		return
-	attack_timer = 0.4
+	targets.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
+	attack_timer = w["cd"]
 	attack_swing = 1.0
-	best.take_damage(7, global_position, 2.0)
 	SFX.play(self, "shoot", -8.0, 0.1)
-	_tracer(global_position + Vector3(0, 0.9, 0), best.global_position + Vector3(0, 0.8, 0))
+	for i in mini(w["pellets"], targets.size()):
+		var enemy: Node3D = targets[i][1]
+		enemy.take_damage(roundi(w["dmg"]), global_position, 2.0)
+		_tracer(global_position + Vector3(0, 0.9, 0), enemy.global_position + Vector3(0, 0.8, 0))
 
 func _tracer(a: Vector3, b: Vector3) -> void:
 	var mi := MeshInstance3D.new()

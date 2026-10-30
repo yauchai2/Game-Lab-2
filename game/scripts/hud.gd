@@ -21,12 +21,13 @@ var boss_fill := ColorRect.new()
 var boss_label := Label.new()
 var bench_msg := Label.new()
 var selected_uid := -1
+var bench_tab := "attach"
 
 @onready var jax: Node = get_parent().get_node("Jax")
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	bench.position = Vector2(60, 50)
+	bench.position = Vector2(40, 34)
 	bench.add_theme_constant_override("separation", 1)
 	bench.custom_minimum_size = Vector2(520, 0)
 	bench.visible = false
@@ -106,7 +107,7 @@ func _process(_delta: float) -> void:
 	var cd: float = jax.skill_timer
 	var skill := "就緒" if cd <= 0.0 else "%.1fs" % cd
 	var dash: String = "就緒" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
-	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d\n%s［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］  音樂［M］" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts, jax.skill_name, skill, dash]
+	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d\n%s［Q／右鍵］：%s   衝刺［空白鍵］：%s   工作枱［C］  音樂［M］" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts, jax.skill_name, skill, dash]
 	var b: Variant = get_parent().boss
 	var boss_alive: bool = b != null and is_instance_valid(b) and b.hp > 0 and b.awake
 	boss_back.visible = boss_alive
@@ -131,6 +132,8 @@ func toggle_bench() -> void:
 	elif not jax.dead:
 		bench.visible = true
 		bench_dim.visible = true
+		move_child(bench_dim, get_child_count() - 1)
+		move_child(bench, get_child_count() - 1)
 		get_tree().paused = true
 		bench_msg.text = ""
 		_refresh_bench()
@@ -166,29 +169,54 @@ func _item_line(it: Dictionary) -> String:
 	var affixes: String = jax.item_affix_text(it)
 	return line + ("  (" + affixes + ")" if affixes != "" else "")
 
+const GEAR_NAMES := {"weapon": "武器", "head": "頭部", "body": "身體", "feet": "腳部", "trinket": "飾物"}
+const CART_TAGS := {"demolish": "Q", "skate": "衝", "weapon": "武", "head": "頭", "body": "身", "feet": "腳", "trinket": "飾"}
+const ATTACH_CARTS := ["demolish", "skate"]
+
 func _cart_name(cart: String) -> String:
+	if cart in GEAR_NAMES:
+		return GEAR_NAMES[cart]
 	return jax.skill_name + "（Q／右鍵）" if cart == "demolish" else "滑板衝刺（空白鍵）"
 
-const CART_TAGS := {"demolish": "Q", "skate": "衝"}
+func _in_tab(item_cart: String) -> bool:
+	return (item_cart in ATTACH_CARTS) == (bench_tab == "attach")
+
+func _on_tab(tab: String) -> void:
+	bench_tab = tab
+	_refresh_bench()
 
 func _refresh_bench() -> void:
 	for c in bench.get_children():
 		c.queue_free()
-	bench.add_child(_bench_label("卡匣工作枱　單據 %d　（按 C 關閉）" % jax.receipts, 12))
-	bench.add_child(_bench_label("請先點選下方背包中的配件，再按「裝上」。［Q］為拆場配件，［衝］為滑板衝刺配件。", 9))
+	var head := HBoxContainer.new()
+	head.add_child(_bench_label("工作枱　單據 %d　（按 C 關閉）　" % jax.receipts, 12))
+	head.add_child(_bench_button("［卡匣配件］" if bench_tab == "attach" else "卡匣配件", _on_tab.bind("attach")))
+	head.add_child(_bench_button("［裝備］" if bench_tab == "gear" else "裝備", _on_tab.bind("gear")))
+	bench.add_child(head)
+	if bench_tab == "attach":
+		bench.add_child(_bench_label("先點選下方背包中的配件，再按「裝上」。［Q］拆場配件，［衝］衝刺配件。", 9))
+	else:
+		bench.add_child(_bench_label("裝備任何角色都能穿。武器決定普通攻擊（近戰／遠程），同欄位會直接替換。", 9))
 	for cart in jax.slots:
+		if not _in_tab(cart):
+			continue
 		for i in jax.slots[cart].size():
 			var it: Variant = jax.slots[cart][i]
-			var b := _bench_button("［%s］%s　槽 %s：%s" % [CART_TAGS[cart], _cart_name(cart), "AB"[i], _item_line(it) if it != null else "（空）"], _on_slot.bind(cart, i))
+			var slot_text := "［%s］%s" % [CART_TAGS[cart], _cart_name(cart)]
+			if cart in ATTACH_CARTS:
+				slot_text += "　槽 %s" % "AB"[i]
+			var b := _bench_button("%s：%s" % [slot_text, _item_line(it) if it != null else "（空）"], _on_slot.bind(cart, i))
 			if it != null:
 				b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
 			bench.add_child(b)
-	bench.add_child(_bench_label("背包 %d/%d（點選配件）：" % [jax.inventory.size(), jax.INVENTORY_LIMIT]))
+	bench.add_child(_bench_label("背包 %d/%d（點選物品）：" % [jax.inventory.size(), jax.INVENTORY_LIMIT]))
 	for it in jax.inventory:
+		var item_cart: String = jax.ITEM_TYPES[it["type"]]["cart"]
+		if not _in_tab(item_cart):
+			continue
 		var mark := ">" if it["uid"] == selected_uid else " "
 		var eq := "[E] " if not jax.slot_info(it["uid"]).is_empty() else ""
-		var tag: String = CART_TAGS[jax.ITEM_TYPES[it["type"]]["cart"]]
-		var b := _bench_button("%s %s[%s] %s" % [mark, eq, tag, _item_line(it)], _on_select.bind(it["uid"]))
+		var b := _bench_button("%s %s[%s] %s" % [mark, eq, CART_TAGS[item_cart], _item_line(it)], _on_select.bind(it["uid"]))
 		b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
 		bench.add_child(b)
 	var row := HBoxContainer.new()
