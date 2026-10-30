@@ -20,12 +20,7 @@ var hp := 120
 var dead := false
 var level := 1
 var xp := 0
-var flash_text := ""
-var flash_time := 0.0
-var style := 0.0
-var style_idle := 0.0
-var last_offer_time := -99.0
-var clock := 0.0
+var levelup_flash := 0.0
 var receipts := 0
 var owned: Array[String] = []
 var slots: Array[String] = ["", ""]
@@ -54,8 +49,7 @@ func gain_xp(amount: int) -> void:
 		max_hp += 10
 		skill_damage += 3
 		hp = max_hp
-		flash_text = "LEVEL UP!"
-		flash_time = 1.5
+		levelup_flash = 1.5
 
 const ZONE := preload("res://game/scripts/zone.gd")
 
@@ -93,72 +87,6 @@ func buy(id: String) -> bool:
 	equip(id)
 	return true
 
-const RANKS := ["C", "B", "A", "S"]
-const RANK_MULT := [1.0, 1.1, 1.25, 1.5]
-const PERK_CRATE := preload("res://game/scripts/perk_crate.gd")
-
-const PERKS := {
-	"damage": {"name": "Heavy Hands: Demolish dmg +20%"},
-	"radius": {"name": "Wide Slam: range +0.6m"},
-	"cooldown": {"name": "Quick Reset: cooldown -15%"},
-	"speed": {"name": "Fast Feet: move +12%"},
-	"dash": {"name": "Smooth Ride: dash cd -20%"},
-	"vitality": {"name": "Thick Skin: max HP +25"},
-	"receipts": {"name": "Pocket Change: +5 receipts"},
-}
-
-func rank_index() -> int:
-	return clampi(int(style / 25.0), 0, 3)
-
-func style_mult() -> float:
-	return RANK_MULT[rank_index()]
-
-# Style: hits, kills and close-call dashes build it; getting hit and idling drain it.
-func add_style(amount: float) -> void:
-	var before := rank_index()
-	style = clampf(style + amount, 0.0, 99.9)
-	style_idle = 0.0
-	var after := rank_index()
-	if after > before and clock - last_offer_time > 15.0:
-		last_offer_time = clock
-		flash_text = "STYLE %s!  Grab a perk" % RANKS[after]
-		flash_time = 2.0
-		_offer_perks()
-
-# Three random perk crates appear around Jax; walk into one, the rest vanish. No menu.
-func _offer_perks() -> void:
-	var pool: Array = PERKS.keys()
-	pool.shuffle()
-	var forward := -global_transform.basis.z
-	forward.y = 0.0
-	for i in 3:
-		var crate := Node3D.new()
-		crate.set_script(PERK_CRATE)
-		crate.perk_id = pool[i]
-		crate.label_text = PERKS[pool[i]]["name"]
-		get_parent().add_child(crate)
-		var dir := forward.rotated(Vector3.UP, (i - 1) * 0.9)
-		var pos := global_position + dir * 4.0
-		crate.global_position = Vector3(clampf(pos.x, -17.0, 17.0), 0.6, clampf(pos.z, -17.0, 17.0))
-
-func apply_perk(id: String) -> void:
-	match id:
-		"damage":
-			skill_damage = int(ceil(skill_damage * 1.2))
-		"radius":
-			skill_radius += 0.6
-		"cooldown":
-			skill_cooldown *= 0.85
-		"speed":
-			speed *= 1.12
-		"dash":
-			dash_cooldown *= 0.8
-		"vitality":
-			max_hp += 25
-			hp += 25
-		"receipts":
-			receipts += 5
-
 func heal(amount: int) -> void:
 	hp = mini(hp + amount, max_hp)
 
@@ -166,7 +94,6 @@ func take_damage(amount: int) -> void:
 	if dead or dash_left > 0.0:
 		return
 	hp = maxi(hp - amount, 0)
-	style = maxf(style - 30.0, 0.0)
 	if hp == 0:
 		dead = true
 		has_target = false
@@ -214,20 +141,9 @@ func dash(toward: Variant = null) -> void:
 	dir.y = 0.0
 	dash_dir = dir.normalized()
 	dash_left = dash_time
-	if _danger_near(3.5):
-		add_style(10.0)
 	dash_timer = dash_cooldown
 	has_target = false
 	look_at(global_position + dash_dir, Vector3.UP)
-
-func _danger_near(radius: float) -> bool:
-	for group in ["enemies", "projectiles"]:
-		for n in get_tree().get_nodes_in_group(group):
-			var d: Vector3 = n.global_position - global_position
-			d.y = 0.0
-			if d.length() < radius:
-				return true
-	return false
 
 # 拆場: short windup, then a shockwave that hits every enemy in range.
 func use_skill() -> void:
@@ -269,14 +185,13 @@ func _impact(center: Vector3, dmg: int, radius: float) -> void:
 		var away: Vector3 = enemy.global_position - center
 		away.y = 0.0
 		if away.length() <= radius:
-			enemy.take_damage(int(dmg * style_mult()), center)
+			enemy.take_damage(dmg, center)
 			hit_count += 1
 	if hit_count > 0:
-		add_style(6.0 * hit_count)
-		_hit_stop(0.07 if rank_index() < 3 else 0.11)
+		_hit_stop(0.07)
 		var cam := get_viewport().get_camera_3d()
 		if cam and cam.has_method("add_shake"):
-			cam.add_shake(minf(0.15 + hit_count * 0.05 + rank_index() * 0.05, 0.55))
+			cam.add_shake(minf(0.15 + hit_count * 0.05, 0.4))
 	_spawn_shockwave(center, radius)
 
 # Brief freeze on impact: the cheap trick that makes hits feel heavy.
@@ -314,11 +229,7 @@ func _spawn_shockwave(center: Vector3, radius: float) -> void:
 func _physics_process(delta: float) -> void:
 	skill_timer = maxf(skill_timer - delta, 0.0)
 	dash_timer = maxf(dash_timer - delta, 0.0)
-	flash_time = maxf(flash_time - delta, 0.0)
-	clock += delta
-	style_idle += delta
-	if style_idle > 3.0 and style > 0.0:
-		style = maxf(style - 8.0 * delta, 0.0)
+	levelup_flash = maxf(levelup_flash - delta, 0.0)
 	if dead:
 		velocity.x = 0.0
 		velocity.z = 0.0
