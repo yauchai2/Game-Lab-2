@@ -6,12 +6,15 @@ extends CharacterBody3D
 @export var skill_windup := 0.3
 @export var skill_radius := 3.5
 @export var skill_damage := 25
+@export var max_hp := 120
 
 var target := Vector3.ZERO
 var has_target := false
 var skill_timer := 0.0
 var windup_left := -1.0
 var anim_time := 0.0
+var hp := 120
+var dead := false
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -19,7 +22,25 @@ var anim_time := 0.0
 @onready var arm_l: Node3D = model.find_child("ArmL", true, false)
 @onready var arm_r: Node3D = model.find_child("ArmR", true, false)
 
+func _ready() -> void:
+	hp = max_hp
+	add_to_group("player")
+
+func take_damage(amount: int) -> void:
+	if dead:
+		return
+	hp = maxi(hp - amount, 0)
+	if hp == 0:
+		dead = true
+		has_target = false
+		windup_left = -1.0
+		model.rotation.x = -1.4
+
 func _unhandled_input(event: InputEvent) -> void:
+	if dead:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_R:
+			get_tree().reload_current_scene()
+		return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_click_move(event.position)
@@ -52,7 +73,7 @@ func _slam() -> void:
 		var away: Vector3 = enemy.global_position - global_position
 		away.y = 0.0
 		if away.length() <= skill_radius:
-			enemy.take_damage(skill_damage)
+			enemy.take_damage(skill_damage, global_position)
 	_spawn_shockwave()
 
 func _spawn_shockwave() -> void:
@@ -74,6 +95,13 @@ func _spawn_shockwave() -> void:
 	tween.tween_callback(ring.queue_free)
 
 func _physics_process(delta: float) -> void:
+	if dead:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if not is_on_floor():
+			velocity.y -= gravity * delta
+		move_and_slide()
+		return
 	skill_timer = maxf(skill_timer - delta, 0.0)
 	var move := Vector3.ZERO
 	if windup_left >= 0.0:
