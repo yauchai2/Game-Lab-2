@@ -8,6 +8,8 @@ extends CharacterBody3D
 @export var gravity := 20.0
 @export var ranged := false
 @export var base_color := Color("8C9871")
+## 裝甲：普通攻擊幾乎無效，要用拆場（擊退力道大）才能破防。
+var armor := false
 
 var hp := 40
 var awake := true
@@ -33,6 +35,8 @@ func _ready() -> void:
 func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) -> void:
 	if hp <= 0:
 		return
+	if armor and knock < 5.0:
+		amount = maxi(int(amount * 0.2), 1)
 	hp -= amount
 	wake()
 	var away := global_position - from_pos

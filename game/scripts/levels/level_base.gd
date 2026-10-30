@@ -117,9 +117,10 @@ func shake(amount := 0.3) -> void:
 	if cam and cam.has_method("add_shake"):
 		cam.add_shake(amount)
 
-func spawn_enemy(pos: Vector3, ranged: bool, group: String, color: Color, hp := 40, awake_now := true) -> Node3D:
+func spawn_enemy(pos: Vector3, ranged: bool, group: String, color: Color, hp := 40, awake_now := true, armor := false) -> Node3D:
 	var e := ENEMY_SCENE.instantiate()
 	e.awake = awake_now
+	e.armor = armor
 	e.camp = group
 	e.max_hp = hp
 	e.ranged = ranged
@@ -137,3 +138,43 @@ func save_and_go(level_name: String) -> void:
 	jax.save_progress(false)
 	CHAPTER.level = level_name
 	get_tree().reload_current_scene()
+
+## 戶外關卡：天空、地面、看不見的邊界。half 是半長半寬。
+func outdoor(sky: Color, ground: Color, half := Vector2(22, 16)) -> void:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color("F4E9D6")
+	env.ambient_light_energy = 0.6
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
+	main.get_node("Floor/Mesh").visible = false
+	box(Vector3(0, 0.01, 0), Vector3(half.x * 2.0, 0.02, half.y * 2.0), ground)
+	for d in [Vector3(0, 2, -half.y), Vector3(0, 2, half.y), Vector3(-half.x, 2, 0), Vector3(half.x, 2, 0)]:
+		var size := Vector3(half.x * 2.0 + 2.0, 4, 1) if d.x == 0.0 else Vector3(1, 4, half.y * 2.0 + 2.0)
+		var wall := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = size
+		shape.shape = bs
+		wall.add_child(shape)
+		wall.position = d
+		add_child(wall)
+
+func portal(pos: Vector3, prompt: String, label: String, action: Callable) -> void:
+	sign3d(label, pos + Vector3(0, 2.6, 0), 22, YELLOW)
+	box(pos + Vector3(0, 0.03, 0), Vector3(2.4, 0.06, 1.2), YELLOW)
+	interact(pos, prompt, action, 2.2, false)
+
+func pickup_item(pos: Vector3, item: Dictionary) -> void:
+	var p := Node3D.new()
+	p.set_script(preload("res://game/scripts/pickup.gd"))
+	p.kind = "item"
+	p.item = item
+	add_child(p)
+	p.global_position = pos + Vector3(0, 0.5, 0)
+
+func enemies_left(group: String) -> int:
+	return get_tree().get_nodes_in_group(group).size()
