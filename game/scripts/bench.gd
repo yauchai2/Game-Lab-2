@@ -37,6 +37,12 @@ var tip_head_bg := ColorRect.new()
 var tip_head := Label.new()
 var tip_body := RichTextLabel.new()
 var stats := RichTextLabel.new()
+var gear_panels: Array = []
+var view := "gear"
+var route := ""
+var zoom_pending := false
+var talent_tip := ""
+var talent_tip_label: Label
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -61,6 +67,7 @@ func _ready() -> void:
 	tip.size = Vector2(216, 214)
 	tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(tip)
+	gear_panels.append(tip)
 	tip_head_bg.position = Vector2(17, 31)
 	tip_head_bg.size = Vector2(214, 28)
 	add_child(tip_head_bg)
@@ -82,16 +89,20 @@ func _ready() -> void:
 	stat_panel.size = Vector2(216, 92)
 	stat_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(stat_panel)
+	gear_panels.append(stat_panel)
 	stats.bbcode_enabled = true
 	stats.position = Vector2(22, 256)
 	stats.size = Vector2(206, 86)
 	stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stats.add_theme_font_size_override("normal_font_size", 9)
 	add_child(stats)
+	gear_panels.append_array([tip_head_bg, tip_head, tip_body, stats])
 	add_child(body)
 
 func open() -> void:
 	message = ""
+	view = "gear"
+	route = ""
 	hover_uid = -1
 	hover_slot = ""
 	visible = true
@@ -152,7 +163,12 @@ func _hex(c: Color) -> String:
 func refresh() -> void:
 	for c in body.get_children():
 		c.queue_free()
+	for n in gear_panels:
+		n.visible = view == "gear"
 	_header()
+	if view == "talent":
+		_talent_view()
+		return
 	_doll()
 	_cartridges()
 	_inventory_grid()
@@ -160,10 +176,161 @@ func refresh() -> void:
 	update_detail()
 
 func _header() -> void:
-	var t := _label("裝備", Vector2(244, 10), 13, Color("E6D9B5"))
-	t.add_theme_constant_override("outline_size", 0)
-	_label("單據 %d" % jax.receipts, Vector2(330, 12), 11, Color("E6D26A"))
-	_label("雙擊裝上／拆下　［C］或［Esc］關閉", Vector2(412, 13), 8, Color("8C8470"))
+	for i in 2:
+		var on := (view == "gear") == (i == 0)
+		var b := _cell(Vector2(244 + i * 52, 6), Vector2(48, 16), ["裝備", "天賦"][i], GOLD if on else Color("3A3426"), CELL_ON if on else CELL, 1)
+		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.add_theme_color_override("font_color", Color("E6D9B5") if on else Color("8C8470"))
+		b.pressed.connect(set_view.bind("gear" if i == 0 else "talent"))
+	_label("單據 %d" % jax.receipts, Vector2(356, 8), 11, Color("E6D26A"))
+	_label("［C］或［Esc］關閉", Vector2(440, 11), 8, Color("8C8470"))
+	if view == "gear":
+		_label("雙擊裝上／拆下", Vector2(520, 11), 8, Color("8C8470"))
+
+func set_view(v: String) -> void:
+	SFX.play(self, "ui_click", -4.0)
+	view = v
+	route = ""
+	refresh()
+
+# ---------- 天賦樹 ----------
+
+func _talent_view() -> void:
+	var free: int = jax.talent_points_free()
+	_label("天賦點 %d／%d" % [free, jax.talent_points_total()], Vector2(16, 8), 11, Color("E6D9B5") if free > 0 else Color("8C8470"))
+	if route == "":
+		_talent_overview()
+	else:
+		_talent_route()
+	var rb := _cell(Vector2(536, 332), Vector2(88, 16), "重置 %d" % jax.TALENTS.RESPEC_COST, GOLD, CELL, 1)
+	rb.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rb.disabled = jax.talents.is_empty() or jax.receipts < jax.TALENTS.RESPEC_COST
+	rb.add_theme_color_override("font_color", Color("E6D9B5"))
+	rb.add_theme_color_override("font_disabled_color", Color("5E5848"))
+	rb.pressed.connect(_on_respec)
+	talent_tip_label = _label(talent_tip, Vector2(16, 334), 10, Color("E6D9B5"))
+
+func _taken_in(r: String) -> int:
+	var n := 0
+	for id in jax.talents:
+		if str(id).begins_with(r):
+			n += 1
+	return n
+
+func _talent_overview() -> void:
+	_label("選一條路線，鏡頭會拉近看細節。", Vector2(16, 28), 10, Color("8C8470"))
+	var c := Vector2(320, 186)
+	var core := _cell(c - Vector2(30, 14), Vector2(60, 28), "起點", GOLD, CELL_ON, 2)
+	core.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	core.disabled = true
+	for r in jax.TALENTS.route_ids():
+		var def: Dictionary = jax.TALENTS.ROUTES[r]
+		var pos: Vector2 = c + def["dir"] * Vector2(150, 84)
+		var line := Line2D.new()
+		line.width = 2.0
+		line.default_color = def["color"].darkened(0.4)
+		line.add_point(c)
+		line.add_point(pos)
+		body.add_child(line)
+		body.move_child(line, 0)
+		var col: Color = def["color"]
+		var b := _cell(pos - Vector2(56, 24), Vector2(112, 48), "%s\n%s\n已點 %d／%d" % [def["name"], def["hint"], _taken_in(r), jax.TALENTS.SHAPE.size()], col, CELL, 2)
+		b.autowrap_mode = TextServer.AUTOWRAP_OFF
+		b.add_theme_color_override("font_color", Color("E6D9B5"))
+		b.pressed.connect(_enter_route.bind(r))
+
+func _enter_route(r: String) -> void:
+	SFX.play(self, "ui_click", -4.0)
+	route = r
+	zoom_pending = true
+	talent_tip = ""
+	refresh()
+
+func _talent_route() -> void:
+	var def: Dictionary = jax.TALENTS.ROUTES[route]
+	var col: Color = def["color"]
+	_label("%s　%s" % [def["name"], def["hint"]], Vector2(16, 28), 11, col)
+	var back := _cell(Vector2(16, 48), Vector2(60, 16), "返回總覽", GOLD, CELL, 1)
+	back.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	back.pressed.connect(_leave_route)
+	if jax.level < jax.TALENTS.REVEAL_LEVEL:
+		_label("10 級前只看得見附近 20 點。", Vector2(16, 70), 9, Color("8C8470"))
+	var graph := Control.new()
+	graph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	graph.position = Vector2.ZERO
+	graph.size = Vector2(640, 360)
+	body.add_child(graph)
+	var vis: Array = jax.TALENTS.visible_ids(jax.talents, jax.level)
+	var pos_of := func(id: String) -> Vector2:
+		var lp: Vector2 = jax.TALENTS.local_pos(id)
+		return Vector2(330 + (lp.x + 0.75) * 66, 300 - lp.y * 54)
+	for i in jax.TALENTS.SHAPE.size():
+		var id: String = jax.TALENTS.node_id(route, i)
+		var par: String = jax.TALENTS.parent_of(id)
+		if par == "" or not vis.has(id):
+			continue
+		var ln := Line2D.new()
+		ln.width = 2.0
+		ln.default_color = col if jax.talents.has(id) else Color("3A3426")
+		ln.add_point(pos_of.call(par))
+		ln.add_point(pos_of.call(id))
+		graph.add_child(ln)
+	for i in jax.TALENTS.SHAPE.size():
+		var id: String = jax.TALENTS.node_id(route, i)
+		if not vis.has(id):
+			continue
+		var n: Dictionary = jax.TALENTS.info(id)
+		var taken: bool = jax.talents.has(id)
+		var can: bool = jax.can_alloc(id)
+		var b := Button.new()
+		b.position = pos_of.call(id) - Vector2(30, 17)
+		b.size = Vector2(60, 34)
+		b.text = n["name"]
+		b.add_theme_font_size_override("font_size", 9)
+		var border: Color = col if taken else (GOLD if can else Color("3A3426"))
+		var fill: Color = col.darkened(0.55) if taken else CELL
+		for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+			b.add_theme_stylebox_override(st, _style(CELL_HOVER if st == "hover" else fill, border, 2 if (taken or can) else 1))
+		b.add_theme_color_override("font_color", Color("E6D9B5") if (taken or can) else Color("8C8470"))
+		b.mouse_entered.connect(_talent_hover.bind(id))
+		b.pressed.connect(_on_talent.bind(id))
+		graph.add_child(b)
+	if zoom_pending:
+		zoom_pending = false
+		graph.pivot_offset = Vector2(330, 300)
+		graph.scale = Vector2(0.35, 0.35)
+		graph.modulate.a = 0.0
+		var tw := create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(graph, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(graph, "modulate:a", 1.0, 0.2)
+
+func _leave_route() -> void:
+	SFX.play(self, "ui_click", -4.0)
+	route = ""
+	talent_tip = ""
+	refresh()
+
+func _talent_hover(id: String) -> void:
+	var n: Dictionary = jax.TALENTS.info(id)
+	var state := "已點" if jax.talents.has(id) else ("可點" if jax.can_alloc(id) else "需先點相連的前一點")
+	talent_tip = "%s：%s（%s）" % [n["name"], jax.TALENTS.describe(id), state]
+	if talent_tip_label != null:
+		talent_tip_label.text = talent_tip
+
+func _on_talent(id: String) -> void:
+	var ok: bool = jax.alloc_talent(id)
+	SFX.play(self, "ui_click" if ok else "ui_error", -4.0)
+	_talent_hover(id)
+	if not ok and not jax.talents.has(id):
+		talent_tip = "不能點：%s" % ("天賦點不足" if jax.talent_points_free() <= 0 else "需先點相連的前一點")
+	refresh()
+
+func _on_respec() -> void:
+	var ok: bool = jax.respec_talents()
+	SFX.play(self, "ui_click" if ok else "ui_error", -4.0)
+	talent_tip = "已重置，天賦點全數退回。" if ok else ""
+	refresh()
 
 func _doll() -> void:
 	# 人形欄位：武器在左、頭／身／腳在中、飾物在右

@@ -155,7 +155,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	hurt_overlay.color.a = jax.hurt_flash * 0.6
-	poise_fill.size.x = BAR_SIZE.x * clampf(jax.poise / jax.POISE_MAX, 0.0, 1.0)
+	poise_fill.size.x = BAR_SIZE.x * clampf(jax.poise / jax.poise_cap(), 0.0, 1.0)
 	poise_fill.color = Color("9FB6E8") if jax.stagger_immune > 0.0 else Color("E6D26A")
 	orb.ratio = float(jax.hp) / float(jax.max_hp)
 	orb.label_text = "%d" % jax.hp

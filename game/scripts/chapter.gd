@@ -393,6 +393,7 @@ func _process(delta: float) -> void:
 		boss_down_shown = true
 		_say_caption(BOSS_DOWN)
 		stage = "return"
+		jax.talent_bonus += jax.TALENTS.BOSS_BONUS
 		jax.save_progress(false)
 	caption_timer -= delta
 	if caption_timer <= 0.0:

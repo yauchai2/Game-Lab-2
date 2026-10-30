@@ -125,6 +125,10 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0, he
 	FLOATY.spawn(get_parent(), global_position + Vector3(0, 1.9, 0), str(amount), Color("E6D26A") if big_hit else Color("F4F0E4"), big_hit)
 	if hp > 0:
 		var p := float(amount) * (2.0 if heavy_hit else 1.0)
+		if heavy_hit:
+			var pl := get_tree().get_first_node_in_group("player")
+			if pl != null and pl.has_method("talent_total"):
+				p *= 1.0 + pl.talent_total("heavy") / 100.0
 		if big:
 			p *= 0.6 if heavy_hit else 0.15
 		poise_damage(p)

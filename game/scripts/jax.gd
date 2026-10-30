@@ -32,6 +32,9 @@ var slots := {"demolish": [null, null], "skill_e": [null, null], "skill_r": [nul
 var base_speed := 6.0
 var gear_hp_bonus := 0
 var next_uid := 1
+const TALENTS := preload("res://game/scripts/talents.gd")
+var talents: Array = []
+var talent_bonus := 0
 var item_rolls := 0
 var dash_left := 0.0
 var dash_timer := 0.0
@@ -154,6 +157,7 @@ func save_progress(lose_half_receipts := true) -> void:
 		"receipts": int(receipts * 0.5) if lose_half_receipts else receipts,
 		"inventory": inventory.duplicate(true), "equipped": equipped,
 		"next_uid": next_uid, "item_rolls": item_rolls,
+		"talents": talents.duplicate(), "talent_bonus": talent_bonus,
 	}
 	PROGRESS.write()
 
@@ -170,6 +174,8 @@ func _load_progress() -> void:
 	inventory = d["inventory"].duplicate(true)
 	next_uid = d["next_uid"]
 	item_rolls = d["item_rolls"]
+	talents = d.get("talents", []).duplicate()
+	talent_bonus = d.get("talent_bonus", 0)
 	for cart in slots:
 		for i in slots[cart].size():
 			var uid: int = d["equipped"].get(cart, [-1, -1])[i]
@@ -352,7 +358,50 @@ func gear_total(kind: String) -> float:
 		for a in it["affixes"]:
 			if a["kind"] == kind:
 				total += a["value"]
+	return total + talent_total(kind)
+
+# --- 天賦 ---
+
+func talent_total(kind: String) -> float:
+	var total := 0.0
+	for id in talents:
+		var n: Dictionary = TALENTS.info(id)
+		if n["stat"] == kind:
+			total += n["value"]
 	return total
+
+func talent_points_total() -> int:
+	return (level - 1) + talent_bonus
+
+func talent_points_free() -> int:
+	return talent_points_total() - talents.size()
+
+func can_alloc(id: String) -> bool:
+	if talents.has(id) or talent_points_free() <= 0:
+		return false
+	var p: String = TALENTS.parent_of(id)
+	return p == "" or talents.has(p)
+
+func alloc_talent(id: String) -> bool:
+	if not can_alloc(id):
+		return false
+	talents.append(id)
+	recalc_gear()
+	return true
+
+func respec_talents() -> bool:
+	if talents.is_empty() or receipts < TALENTS.RESPEC_COST:
+		return false
+	receipts -= TALENTS.RESPEC_COST
+	talents.clear()
+	recalc_gear()
+	return true
+
+func poise_cap() -> float:
+	return POISE_MAX + talent_total("poise")
+
+func roll_recharge_time() -> float:
+	return ROLL_RECHARGE * (1.0 - clampf((affix_total("cd", "skate") + talent_total("roll_cd")) / 100.0, 0.0, 0.8))
 
 func weapon_stats_of(item: Variant) -> Dictionary:
 	var s := {"kind": "melee", "dmg": 5.0, "cd": 0.6, "reach": 1.6, "pellets": 1}
@@ -478,7 +527,7 @@ func on_kill() -> void:
 	for k in FLASKS:
 		if flask_charges[k] < FLASKS[k]["max"]:
 			flask_progress[k] += 1
-			if flask_progress[k] >= FLASKS[k]["kills"]:
+			if flask_progress[k] >= maxf(1.0, FLASKS[k]["kills"] * (1.0 - talent_total("flask_fast") / 100.0)):
 				flask_progress[k] = 0
 				flask_charges[k] += 1
 
@@ -488,7 +537,7 @@ func use_flask(kind: String) -> void:
 	flask_charges[kind] -= 1
 	SFX.play(self, "pickup_hp", -4.0)
 	if kind == "soda":
-		heal(int(max_hp * 0.45))
+		heal(int(max_hp * (0.45 + talent_total("soda") / 100.0)))
 	else:
 		bento_left = 6.0
 
@@ -515,7 +564,7 @@ func take_damage(amount: int, element := "phys", source: Node = null) -> void:
 	var raw := float(amount)
 	var blocked := false
 	if guarding and _guard_covers(source):
-		if guard_age <= PERFECT_WINDOW:
+		if guard_age <= PERFECT_WINDOW + talent_total("perfect"):
 			_perfect_block(source)
 			return
 		blocked = true
@@ -547,9 +596,9 @@ func _take_poise(amount: float) -> void:
 		return
 	poise -= amount
 	if poise <= 0.0:
-		poise = POISE_MAX
+		poise = poise_cap()
 		stagger_left = STAGGER_TIME
-		stagger_immune = STAGGER_TIME + STAGGER_IMMUNE
+		stagger_immune = STAGGER_TIME + STAGGER_IMMUNE + talent_total("stagger_immune")
 		windup_left = -1.0
 		FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.6, 0), "踉蹌", Color("E6D26A"), true)
 
@@ -649,7 +698,7 @@ func dash(toward: Variant = null) -> void:
 	dash_hit.clear()
 	trail_accum = 0.0
 	if roll_charges >= roll_max():
-		roll_recharge = ROLL_RECHARGE * (1.0 - affix_total("cd", "skate") / 100.0)
+		roll_recharge = roll_recharge_time()
 	roll_charges -= 1
 	dash_timer = dash_cooldown
 	stagger_left = 0.0
@@ -689,7 +738,7 @@ func roll_max() -> int:
 	for it in slots["skate"]:
 		if it != null and it["type"] == "double":
 			extra += 1
-	return ROLL_BASE_CHARGES + extra
+	return ROLL_BASE_CHARGES + extra + int(talent_total("roll_charge"))
 
 func skill_unlocked(cart: String) -> bool:
 	return not EXTRA_SKILLS.has(cart) or level >= EXTRA_SKILLS[cart]["unlock"]
@@ -896,11 +945,11 @@ func _physics_process(delta: float) -> void:
 		roll_recharge -= delta
 		if roll_recharge <= 0.0:
 			roll_charges += 1
-			roll_recharge = ROLL_RECHARGE * (1.0 - affix_total("cd", "skate") / 100.0) if roll_charges < rmax else 0.0
+			roll_recharge = roll_recharge_time() if roll_charges < rmax else 0.0
 	roll_charges = mini(roll_charges, rmax)
 	poise_wait = maxf(poise_wait - delta, 0.0)
-	if poise_wait <= 0.0 and poise < POISE_MAX:
-		poise = minf(poise + 15.0 * delta, POISE_MAX)
+	if poise_wait <= 0.0 and poise < poise_cap():
+		poise = minf(poise + 15.0 * delta, poise_cap())
 	stagger_left = maxf(stagger_left - delta, 0.0)
 	stagger_immune = maxf(stagger_immune - delta, 0.0)
 	levelup_flash = maxf(levelup_flash - delta, 0.0)
