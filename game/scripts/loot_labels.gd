@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## 掉落物名牌（仿 PoE 2）：地上的配件與裝備顯示為深色名牌，文字按稀有度上色，互相疊排不重疊。
 
+const VHS := preload("res://game/scripts/vhs.gd")
 const RARITY_COLORS := [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")]
 const LABEL_H := 13.0
 const PAD := 6.0
@@ -9,7 +10,7 @@ var labels := {}
 var hide_common := false
 
 func _ready() -> void:
-	layer = 0
+	layer = -1
 
 func _label_for(p: Node) -> Panel:
 	if labels.has(p):
@@ -22,10 +23,7 @@ func _label_for(p: Node) -> Panel:
 	box.border_color = col.darkened(0.35)
 	box.set_border_width_all(1)
 	panel.add_theme_stylebox_override("panel", box)
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and is_instance_valid(p):
-			p.pulled = true)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var l := Label.new()
 	l.name = "Text"
 	l.text = _name_of(p)
@@ -48,6 +46,18 @@ func _name_of(p: Node) -> String:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Z:
 		hide_common = not hide_common
+
+# 點名牌撿取：滑鼠位置先按濾鏡校正，再比對名牌範圍。
+func _input(event: InputEvent) -> void:
+	if get_tree().paused or not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	var m: Vector2 = VHS.warp_pos(event.position, get_viewport().get_visible_rect().size)
+	for p in labels.keys():
+		var panel: Panel = labels[p]
+		if is_instance_valid(p) and panel.visible and Rect2(panel.position, panel.size).has_point(m):
+			p.pulled = true
+			get_viewport().set_input_as_handled()
+			return
 
 func _process(_delta: float) -> void:
 	var cam := get_viewport().get_camera_3d()

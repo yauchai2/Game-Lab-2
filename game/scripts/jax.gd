@@ -53,6 +53,7 @@ var attack_swing := 0.0
 const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
 const FLOATY := preload("res://game/scripts/floaty.gd")
+const VHS := preload("res://game/scripts/vhs.gd")
 const SKYE_MODEL := preload("res://assets/characters/skye.glb")
 
 var char_id := "jax"
@@ -542,6 +543,7 @@ func _move_input() -> Vector3:
 	return v.normalized()
 
 func _pick_point(screen_pos: Vector2) -> Variant:
+	screen_pos = VHS.warp_pos(screen_pos, get_viewport().get_visible_rect().size)
 	var camera := get_viewport().get_camera_3d()
 	var from := camera.project_ray_origin(screen_pos)
 	var to := from + camera.project_ray_normal(screen_pos) * 100.0
