@@ -116,7 +116,7 @@ func _process(_delta: float) -> void:
 	if get_parent().victory:
 		banner.text = "通關！　按 R 再玩一次"
 	elif jax.dead:
-		banner.text = "倒下了（保留等級同配件，單據減半）－ 按 R 重新開始"
+		banner.text = "倒下了（保留等級與配件，單據減半）－ 按 R 重新開始"
 	elif jax.levelup_flash > 0.0 and not bench.visible:
 		banner.text = jax.flash_text
 	else:
@@ -172,7 +172,7 @@ func _refresh_bench() -> void:
 	for c in bench.get_children():
 		c.queue_free()
 	bench.add_child(_bench_label("卡匣工作枱　單據 %d　（按 C 關閉）" % jax.receipts, 12))
-	bench.add_child(_bench_label("先點下面背包嘅配件，再按「裝上」。［Q］係拆場配件，［衝］係滑板衝刺配件。", 9))
+	bench.add_child(_bench_label("請先點選下方背包中的配件，再按「裝上」。［Q］為拆場配件，［衝］為滑板衝刺配件。", 9))
 	for cart in jax.slots:
 		for i in jax.slots[cart].size():
 			var it: Variant = jax.slots[cart][i]

@@ -58,7 +58,7 @@ func _ready() -> void:
 	_load_progress()
 	hp = max_hp
 
-# 死咗保留等級、背包、已裝配件；單據損失一半。
+# 死亡後保留等級、背包、已裝配件；單據損失一半。
 func save_progress(lose_half_receipts := true) -> void:
 	var equipped := {}
 	for cart in slots:
@@ -158,7 +158,7 @@ func random_item() -> Dictionary:
 		rarity = 1
 	var types: Array = ITEM_TYPES.keys()
 	if item_rolls == 2:
-		# 第 2 件必定係衝刺配件，方便新手發現第二張卡匣。
+		# 第 2 件必定是衝刺配件，方便新手發現第二張卡匣。
 		types = types.filter(func(t: String) -> bool: return ITEM_TYPES[t]["cart"] == "skate")
 	return make_item(types[randi() % types.size()], rarity)
 
@@ -552,7 +552,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_animate_limbs(delta, move.length() > 0.1 and dash_left <= 0.0)
 
-# 普通攻擊：附近有敵人就自動揮擊，細傷害、冇字卡，邊行邊打。
+# 普通攻擊：附近有敵人就自動揮擊，傷害小、沒有字卡，邊走邊打。
 func _auto_attack() -> void:
 	if attack_timer > 0.0:
 		return

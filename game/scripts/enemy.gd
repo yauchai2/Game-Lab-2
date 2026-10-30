@@ -52,7 +52,7 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) ->
 		die.tween_property(self, "scale", Vector3(1.2, 0.01, 1.2), 0.25)
 		die.tween_callback(queue_free)
 
-# 敵群平時站定，玩家行近（或同營敵人被驚動）先會一齊追上嚟。
+# 敵群平時站定，玩家走近（或同營敵人受驚動）才會一起追擊。
 func wake() -> void:
 	if awake:
 		return
