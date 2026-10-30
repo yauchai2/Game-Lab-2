@@ -122,7 +122,7 @@ func _build_logic() -> void:
 	for d in rack_defs:
 		var item_box := box(Vector3(-5.7, 1.2, d["z"]), Vector3(0.4, 0.4, 0.4), YELLOW)
 		var lbl := sign3d(d["label"], Vector3(-5.2, 2.0, d["z"]), 20)
-		var it := interact(Vector3(-5.0, 0, d["z"]), "拿起" + d["label"], _on_rack.bind(d, item_box, lbl), 1.2)
+		var it := interact(Vector3(-5.0, 0, d["z"]), "拿起" + d["label"], _on_rack.bind(d), 1.2)
 		it.enabled = false
 		rack_items.append({"it": it, "box": item_box, "label": lbl})
 	interact(Vector3(-3.2, 0, 2.6), "工作枱", _on_bench, 2.0, false).enabled = false
@@ -260,7 +260,7 @@ func _on_note() -> void:
 	say("字條", "「吃光了。樓下買吧，順便幫我拿一件東西。」", 3.4)
 	_done("note")
 
-func _on_rack(d: Dictionary, item_box: Node3D, lbl: Node3D) -> void:
+func _on_rack(d: Dictionary) -> void:
 	give_and_equip(d["type"])
 	say("", d["line"], 3.2)
 	for r in rack_items:

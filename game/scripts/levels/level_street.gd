@@ -185,7 +185,7 @@ func _start_ambush() -> void:
 
 func _spawn_ambush(with_lines: bool) -> void:
 	var grabber := spawn_enemy(Vector3(9, 0, 5), false, "ambush", Color("292D3B"), 55, not with_lines)
-	var scanner := spawn_enemy(Vector3(11, 0, 8), true, "ambush", Color("4A4E69"), 30, not with_lines)
+	spawn_enemy(Vector3(11, 0, 8), true, "ambush", Color("4A4E69"), 30, not with_lines)
 	if not with_lines:
 		_arm_props()
 		_refresh_state()

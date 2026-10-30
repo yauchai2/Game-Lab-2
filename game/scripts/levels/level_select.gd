@@ -23,9 +23,10 @@ func _ready() -> void:
 	box(Vector3(0, 0.01, 0), Vector3(14, 0.02, 10), Color("B58E69"))
 	box(Vector3(0, 2.0, -5.3), Vector3(14.6, 4.0, 0.6), Color("E7DFC9"), true)
 	box(Vector3(0, 0.5, -1.5), Vector3(3.0, 1.0, 1.4), WOOD, true)
-	var toaster := box(Vector3(0, 1.2, -1.5), Vector3(0.8, 0.4, 0.5), Color("7A8A9E"))
+	box(Vector3(0, 1.2, -1.5), Vector3(0.8, 0.4, 0.5), Color("7A8A9E"))
 	sign3d("壞掉的多士爐", Vector3(0, 2.2, -1.5), 22)
 	jax.global_position = Vector3(0, 0.87, 4.5)
+	get_viewport().get_camera_3d().offset = Vector3(0, 4.5, 7.5)
 	jax.model.visible = false
 	jax.set_physics_process(false)
 	jax.set_process_unhandled_input(false)
