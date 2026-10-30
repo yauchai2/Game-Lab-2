@@ -33,6 +33,7 @@
 | `game/scripts/camera_follow.gd` | 鏡頭跟隨 |
 | `game/enemy.tscn`、`game/scripts/enemy.gd` | 敵人：追人、近身攻擊、受擊閃白同擊退（40 血） |
 | `game/scripts/projectile.gd` | 遠程敵人嘅飛彈 |
+| `game/scripts/speed_lines.gd` | 衝刺同重擊時嘅放射速度線 |
 | `game/scripts/zone.gd` | 地面範圍（預警圈、殘留區） |
 | `game/scripts/pickup.gd` | 掉落物（經驗／回血） |
 | `game/scripts/main.gd` | 一波波生成敵人 |
@@ -64,3 +65,9 @@
 | Time Bomb | 6 | 0.8 秒後爆發，範圍 +1 米，傷害 x1.4 |
 
 點槽可以拆走配件，點配件可以買／裝。兩個配件可以疊加（例如 Echo Slam + Time Bomb）。命中敵人時有短暫頓幀同鏡頭震動。
+
+## 打擊演出
+
+- **技能字卡：** 放「拆場」或衝刺時，畫面中間彈出橫幅字卡（DEMOLISH／SKATE DASH），拆場字卡下面會列出已裝嘅配件名。
+- **速度線：** 衝刺同重擊命中敵人時，畫面射出放射狀白色速度線（命中愈多愈強）。
+- 另外有頓幀同鏡頭震動。

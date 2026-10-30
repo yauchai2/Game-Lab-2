@@ -21,6 +21,10 @@ var dead := false
 var level := 1
 var xp := 0
 var levelup_flash := 0.0
+signal skill_cast(title: String, subtitle: String)
+signal dashed
+signal slammed(hit_count: int)
+
 var receipts := 0
 var owned: Array[String] = []
 var slots: Array[String] = ["", ""]
@@ -141,6 +145,8 @@ func dash(toward: Variant = null) -> void:
 	dir.y = 0.0
 	dash_dir = dir.normalized()
 	dash_left = dash_time
+	dashed.emit()
+	skill_cast.emit("SKATE DASH", "")
 	dash_timer = dash_cooldown
 	has_target = false
 	look_at(global_position + dash_dir, Vector3.UP)
@@ -151,6 +157,11 @@ func use_skill() -> void:
 		return
 	has_target = false
 	windup_left = skill_windup + (0.2 if has_attachment("heavy") else 0.0)
+	var names: Array[String] = []
+	for id in slots:
+		if id != "":
+			names.append(ATTACHMENTS[id]["name"].to_upper())
+	skill_cast.emit("DEMOLISH", " + ".join(names))
 	skill_timer = skill_cooldown
 
 func _slam() -> void:
@@ -188,6 +199,7 @@ func _impact(center: Vector3, dmg: int, radius: float) -> void:
 			enemy.take_damage(dmg, center)
 			hit_count += 1
 	if hit_count > 0:
+		slammed.emit(hit_count)
 		_hit_stop(0.07)
 		var cam := get_viewport().get_camera_3d()
 		if cam and cam.has_method("add_shake"):

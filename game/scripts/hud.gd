@@ -8,6 +8,11 @@ var xp_back := ColorRect.new()
 var xp_fill := ColorRect.new()
 var info := Label.new()
 var banner := Label.new()
+var lines := Control.new()
+var card_band := ColorRect.new()
+var card_title := Label.new()
+var card_sub := Label.new()
+var card_tween: Tween
 var bench := VBoxContainer.new()
 var bench_msg := Label.new()
 
@@ -38,6 +43,31 @@ func _ready() -> void:
 	info.position = Vector2(8, 28)
 	info.add_theme_font_size_override("font_size", 10)
 	add_child(info)
+	lines.set_script(load("res://game/scripts/speed_lines.gd"))
+	add_child(lines)
+	card_band.color = Color(0.16, 0.18, 0.23, 0.8)
+	card_band.size = Vector2(640, 34)
+	card_band.position = Vector2(0, 100)
+	card_band.pivot_offset = Vector2(320, 17)
+	card_band.visible = false
+	add_child(card_band)
+	card_title.add_theme_font_size_override("font_size", 22)
+	card_title.add_theme_color_override("font_color", Color("CC6657"))
+	card_title.add_theme_color_override("font_outline_color", Color("E7DFC9"))
+	card_title.add_theme_constant_override("outline_size", 3)
+	card_title.size = Vector2(640, 26)
+	card_title.position = Vector2(0, -3)
+	card_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_band.add_child(card_title)
+	card_sub.add_theme_font_size_override("font_size", 8)
+	card_sub.add_theme_color_override("font_color", Color("E7DFC9"))
+	card_sub.size = Vector2(640, 12)
+	card_sub.position = Vector2(0, 22)
+	card_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_band.add_child(card_sub)
+	jax.skill_cast.connect(_show_card)
+	jax.dashed.connect(lines.burst.bind(1.0))
+	jax.slammed.connect(func(hits: int) -> void: lines.burst(clampf(0.5 + hits * 0.25, 0.5, 1.5)))
 	banner.position = Vector2(8, 150)
 	banner.add_theme_font_size_override("font_size", 20)
 	add_child(banner)
@@ -119,3 +149,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_C or (bench.visible and event.keycode == KEY_ESCAPE)):
 		toggle_bench()
 		return
+
+func _show_card(title: String, subtitle: String) -> void:
+	card_title.text = title
+	card_sub.text = subtitle
+	card_band.visible = true
+	card_band.modulate.a = 1.0
+	card_band.scale = Vector2(1, 0.1)
+	if card_tween:
+		card_tween.kill()
+	card_tween = create_tween()
+	card_tween.tween_property(card_band, "scale", Vector2(1, 1), 0.08)
+	card_tween.tween_interval(0.55)
+	card_tween.tween_property(card_band, "modulate:a", 0.0, 0.2)
+	card_tween.tween_callback(func() -> void: card_band.visible = false)
