@@ -14,7 +14,6 @@ const LEFT := [
 	["fullscreen", "顯示模式", "cycle", ["視窗", "全螢幕"]],
 	["render", "3D 解析度", "cycle", ["低（960）", "標準（1280）", "高（1920）", "原生"]],
 	["fisheye", "魚眼強度", "cycle", ["關", "弱", "標準", "強"]],
-	["grade", "調色", "cycle", ["關", "開"]],
 	["shadows", "陰影", "cycle", ["關", "開"]],
 	["vsync", "垂直同步", "cycle", ["關", "開"]],
 ]
@@ -25,7 +24,7 @@ const RIGHT := [
 	["zoom_speed", "滾輪縮放速度", "cycle", ["慢", "標準", "快"]],
 	["hide_common", "隱藏白色掉落名牌", "cycle", ["關", "開"]],
 ]
-const KEYS_TEXT := "操作\nWASD 移動　空白鍵 翻滾\nQ／E／R／F 技能　Shift 格擋\n滑鼠中鍵拖曳 轉鏡頭　滾輪 縮放\nC 工作枱　Z 隱藏白色名牌\nM 音樂　V 魚眼與調色\nEsc 設定"
+const KEYS_TEXT := "操作\nWASD 移動　空白鍵 翻滾\nQ／E／R／F 技能　Shift 格擋\n滑鼠中鍵拖曳 轉鏡頭　滾輪 縮放\nC 工作枱　Z 隱藏白色名牌\nM 音樂　V 魚眼\nEsc 設定"
 
 var in_game := false
 var was_paused := false

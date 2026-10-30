@@ -51,7 +51,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	mat.set_shader_parameter("k", GS.fisheye_k())
-	mat.set_shader_parameter("grade", float(GS.v["grade"]))
+	mat.set_shader_parameter("grade", GS.grade_strength)
 	var vs := get_viewport().get_visible_rect().size
 	mat.set_shader_parameter("aspect", vs.x / vs.y)
 	var root := get_tree().root
@@ -59,9 +59,7 @@ func _process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
-		var on: bool = GS.v["fisheye"] > 0 or GS.v["grade"] == 1
-		GS.v["fisheye"] = 0 if on else 2
-		GS.v["grade"] = 0 if on else 1
+		GS.v["fisheye"] = 0 if GS.v["fisheye"] > 0 else 2
 
 ## 滑鼠在（扭曲後）畫面上的位置 → 對應 3D 畫面（未扭曲）的位置。關掉濾鏡時原樣返回。
 static func warp_pos(pos: Vector2, view_size: Vector2) -> Vector2:
