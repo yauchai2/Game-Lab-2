@@ -63,9 +63,9 @@ func _ready() -> void:
 	var loot_labels := CanvasLayer.new()
 	loot_labels.set_script(preload("res://game/scripts/loot_labels.gd"))
 	add_child(loot_labels)
-	var vhs := CanvasLayer.new()
-	vhs.set_script(preload("res://game/scripts/vhs.gd"))
-	add_child(vhs)
+	var fisheye := CanvasLayer.new()
+	fisheye.set_script(preload("res://game/scripts/fisheye.gd"))
+	add_child(fisheye)
 	add_child(music)
 	music.volume_db = MUSIC_DB
 	_play_music("explore")

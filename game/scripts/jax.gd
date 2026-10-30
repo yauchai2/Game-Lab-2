@@ -53,7 +53,7 @@ var attack_swing := 0.0
 const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
 const FLOATY := preload("res://game/scripts/floaty.gd")
-const VHS := preload("res://game/scripts/vhs.gd")
+const FISHEYE := preload("res://game/scripts/fisheye.gd")
 const HITFX := preload("res://game/scripts/hitfx.gd")
 const SKYE_MODEL := preload("res://assets/characters/skye.glb")
 
@@ -494,7 +494,6 @@ func take_damage(amount: int, element := "phys") -> void:
 	hurt_flash = 0.4
 	HITFX.sparks(get_parent(), global_position + Vector3(0, 1.0, 0), ELEMENT_COLORS.get(element, Color("CC6657")), 10, 1.2)
 	HITFX.shake(self, 0.3)
-	HITFX.kick(1.0)
 	HITFX.hit_stop(get_tree(), 0.05)
 	SFX.play(self, "death" if hp == 0 else "hurt", -3.0)
 	if hp == 0:
@@ -550,7 +549,7 @@ func _move_input() -> Vector3:
 	return v.normalized()
 
 func _pick_point(screen_pos: Vector2) -> Variant:
-	screen_pos = VHS.warp_pos(screen_pos, get_viewport().get_visible_rect().size)
+	screen_pos = FISHEYE.warp_pos(screen_pos, get_viewport().get_visible_rect().size)
 	var camera := get_viewport().get_camera_3d()
 	var from := camera.project_ray_origin(screen_pos)
 	var to := from + camera.project_ray_normal(screen_pos) * 100.0
@@ -761,8 +760,6 @@ func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void
 		if cam and cam.has_method("add_shake"):
 			cam.add_shake(minf(0.15 + hit_count * 0.05, 0.4))
 	HITFX.sparks(get_parent(), center + Vector3(0, 0.3, 0), Color("E6D26A"), 14 + mini(hit_count * 2, 14), 1.8)
-	if hit_count > 0:
-		HITFX.kick(0.5)
 	_spawn_shockwave(center, radius)
 
 func _explode(pos: Vector3, radius: float, dmg: int) -> void:

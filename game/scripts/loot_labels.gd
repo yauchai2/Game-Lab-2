@@ -1,7 +1,7 @@
 extends CanvasLayer
 ## 掉落物名牌（仿 PoE 2）：地上的配件與裝備顯示為深色名牌，文字按稀有度上色，互相疊排不重疊。
 
-const VHS := preload("res://game/scripts/vhs.gd")
+const FISHEYE := preload("res://game/scripts/fisheye.gd")
 const RARITY_COLORS := [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")]
 const LABEL_H := 13.0
 const PAD := 6.0
@@ -51,7 +51,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _input(event: InputEvent) -> void:
 	if get_tree().paused or not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
-	var m: Vector2 = VHS.warp_pos(event.position, get_viewport().get_visible_rect().size)
+	var m: Vector2 = FISHEYE.warp_pos(event.position, get_viewport().get_visible_rect().size)
 	for p in labels.keys():
 		var panel: Panel = labels[p]
 		if is_instance_valid(p) and panel.visible and Rect2(panel.position, panel.size).has_point(m):

@@ -1,7 +1,6 @@
 extends RefCounted
-## 打擊感小工具：火花、頓幀、鏡頭震動、VHS 畫面衝擊。
+## 打擊感小工具：火花、頓幀、鏡頭震動。
 
-const VHS := preload("res://game/scripts/vhs.gd")
 static var stopping := false
 
 static func sparks(world: Node, pos: Vector3, color: Color, amount := 8, power := 1.0) -> void:
@@ -43,5 +42,3 @@ static func shake(world: Node, amount: float) -> void:
 	if cam and cam.has_method("add_shake"):
 		cam.add_shake(amount)
 
-static func kick(amount: float) -> void:
-	VHS.kick = maxf(VHS.kick, amount)

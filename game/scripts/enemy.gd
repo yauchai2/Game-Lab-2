@@ -46,7 +46,6 @@ func _hit_react(frac: float) -> void:
 	HITFX.shake(self, 0.04 + minf(frac, 1.0) * 0.25)
 	if frac >= 0.2:
 		HITFX.hit_stop(get_tree(), 0.04)
-		HITFX.kick(0.3)
 	var base := Vector3.ONE
 	mesh.scale = Vector3(1.3, 0.75, 1.3)
 	var tw := create_tween()
@@ -108,7 +107,6 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) ->
 		HITFX.sparks(get_parent(), global_position + Vector3(0, 1.0, 0), base_color.lightened(0.3), 18, 1.6)
 		HITFX.hit_stop(get_tree(), 0.05)
 		HITFX.shake(self, 0.18)
-		HITFX.kick(0.5)
 		knockback *= 1.8
 		bar_back.visible = false
 		bar_fill.visible = false
