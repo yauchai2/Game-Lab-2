@@ -466,7 +466,7 @@ func add_item(item: Dictionary) -> bool:
 	return true
 
 # Bench actions return an empty string on success, or a message for the player.
-func toggle_equip(uid: int, target := "") -> String:
+func toggle_equip(uid: int, skill_target := "") -> String:
 	var info := slot_info(uid)
 	if not info.is_empty():
 		if bag_count() >= INVENTORY_LIMIT:
@@ -486,8 +486,8 @@ func toggle_equip(uid: int, target := "") -> String:
 		return ""
 	# 技能配件：優先裝進指定的技能，否則裝進第一個有空槽的已解鎖技能。
 	var order: Array = SKILL_CARTS if cart == "demolish" else [cart]
-	if cart == "demolish" and target in SKILL_CARTS:
-		order = [target]
+	if cart == "demolish" and skill_target in SKILL_CARTS:
+		order = [skill_target]
 	for c in order:
 		if not skill_unlocked(c):
 			continue

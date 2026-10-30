@@ -356,7 +356,7 @@ func _cartridges() -> void:
 	for gi in groups.size():
 		var cart: String = groups[gi]
 		var x := 244 + (gi % 2) * 190
-		var y := 164 + (gi / 2) * 25
+		var y := 164 + int(gi / 2.0) * 25
 		var locked: bool = not jax.skill_unlocked(cart) if cart != "skate" else false
 		var key: String = jax.SKILL_KEYS.get(cart, "空白")
 		var nm: String = jax.skill_name if cart == "demolish" else ("翻滾" if cart == "skate" else jax.EXTRA_SKILLS[cart]["name"])
