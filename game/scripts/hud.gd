@@ -145,15 +145,15 @@ func toggle_bench() -> void:
 
 # ---------- 底部技能列 ----------
 
-const SKILL_BOX := Vector2(96, 30)
+const SKILL_BOX := Vector2(68, 30)
 
 func _build_skill_bar() -> void:
-	var defs := [["skill", "Q"], ["dash", "空白"], ["weapon", "自動"]]
+	var defs := [["demolish", "Q"], ["skill_e", "E"], ["skill_r", "R"], ["skill_f", "F"], ["dash", "空白"], ["weapon", "自動"]]
 	for i in defs.size():
 		var back := ColorRect.new()
 		back.color = Color(0.16, 0.18, 0.23, 0.85)
 		back.size = SKILL_BOX
-		back.position = Vector2(320 - 150 + i * 102, 326)
+		back.position = Vector2(320 - defs.size() * 35 + i * 70, 326)
 		add_child(back)
 		var cool := ColorRect.new()
 		cool.color = Color(0.05, 0.06, 0.09, 0.7)
@@ -169,31 +169,45 @@ func _build_skill_bar() -> void:
 		back.add_child(key)
 		var title := Label.new()
 		title.position = Vector2(2, 6)
+		title.size = Vector2(SKILL_BOX.x - 4, 12)
+		title.clip_text = true
 		title.add_theme_font_size_override("font_size", 10)
 		back.add_child(title)
 		var sub := Label.new()
 		sub.position = Vector2(2, 17)
+		sub.size = Vector2(SKILL_BOX.x - 4, 11)
+		sub.clip_text = true
 		sub.add_theme_font_size_override("font_size", 8)
 		sub.add_theme_color_override("font_color", Color("9AA3AD"))
 		back.add_child(sub)
 		skill_boxes[defs[i][0]] = {"cool": cool, "title": title, "sub": sub}
 
-func _set_box(id: String, title: String, sub: String, remain: float, total: float) -> void:
+func _set_box(id: String, title: String, sub: String, remain: float, total: float, locked := false) -> void:
 	var box: Dictionary = skill_boxes[id]
 	box["title"].text = title
 	box["sub"].text = sub
 	box["cool"].size.y = SKILL_BOX.y * clampf(remain / maxf(total, 0.01), 0.0, 1.0)
+	if locked:
+		box["cool"].size.y = SKILL_BOX.y
 	box["cool"].position.y = SKILL_BOX.y - box["cool"].size.y
-	box["title"].add_theme_color_override("font_color", Color("E7DFC9") if remain <= 0.0 else Color("9AA3AD"))
+	box["title"].add_theme_color_override("font_color", Color("E7DFC9") if remain <= 0.0 and not locked else Color("9AA3AD"))
 
 func _update_skill_bar() -> void:
-	var skill_sub: String = jax.slot_names("demolish")
-	var dash_sub: String = jax.slot_names("skate")
 	var w: Dictionary = jax.weapon_stats()
-	var cd: float = jax.skill_timer
+	for cart in jax.SKILL_CARTS:
+		var nm: String = jax.skill_name_of(cart)
+		var remain: float = jax.skill_timer_of(cart)
+		var total: float = jax.skill_cooldown if cart == "demolish" else jax.EXTRA_SKILLS[cart]["cd"]
+		var locked: bool = not jax.skill_unlocked(cart)
+		var atts: String = jax.slot_names(cart)
+		var sub := "Lv.%d 解鎖" % jax.EXTRA_SKILLS[cart]["unlock"] if locked else (atts if atts != "" else "無配件")
+		var title := nm if remain <= 0.0 or locked else "%s %.1f" % [nm, remain]
+		if cart == "skill_f" and jax.buff_left > 0.0:
+			title = "%s %.1f" % [nm, jax.buff_left]
+		_set_box(cart, title, sub, remain, total, locked)
 	var dcd: float = jax.dash_timer
-	_set_box("skill", jax.skill_name + ("" if cd <= 0.0 else "  %.1f" % cd), skill_sub if skill_sub != "" else "無配件", cd, jax.skill_cooldown)
-	_set_box("dash", "衝刺" + ("" if dcd <= 0.0 else "  %.1f" % dcd), dash_sub if dash_sub != "" else "無配件", dcd, jax.dash_cooldown)
+	var dash_sub: String = jax.slot_names("skate")
+	_set_box("dash", "衝刺" + ("" if dcd <= 0.0 else " %.1f" % dcd), dash_sub if dash_sub != "" else "無配件", dcd, jax.dash_cooldown)
 	var wi: Variant = jax.slots["weapon"][0]
 	_set_box("weapon", jax.item_name(wi) if wi != null else "空手", "近戰" if w["kind"] == "melee" else "遠程", 0.0, 1.0)
 

@@ -17,7 +17,10 @@ const SLOT_HINTS := {
 	"body": "身體欄\n提供生命或技能傷害。",
 	"feet": "腳部欄\n提供移速或技能冷卻。",
 	"trinket": "飾物欄\n提供技能傷害、冷卻或普攻傷害。",
-	"demolish": "技能卡匣槽\n裝上配件，改變這個技能的效果。",
+	"demolish": "招牌技能槽（Q）\n裝上配件，改變這個技能的效果。\n點選技能槽後，再裝上配件，就會裝進這個技能。",
+	"skill_e": "鐵鍊旋風（E）\n身邊連續三下範圍打擊。\n點選技能槽後再裝配件。",
+	"skill_r": "衝擊線（R）\n朝滑鼠方向炸出一排爆炸。\n點選技能槽後再裝配件。",
+	"skill_f": "油門全開（F）\n短時間加快移動與普攻。\n配件的冷卻與範圍詞綴有效。",
 	"skate": "衝刺卡匣槽\n裝上配件，改變衝刺的效果。",
 }
 const TAGS := {"demolish": "技", "skate": "衝", "weapon": "武", "head": "頭", "body": "身", "feet": "腳", "trinket": "飾"}
@@ -28,6 +31,7 @@ var selected_uid := -1
 var hover_uid := -1
 var hover_slot := ""
 var message := ""
+var target_cart := "demolish"
 var body := Control.new()
 var tip_head_bg := ColorRect.new()
 var tip_head := Label.new()
@@ -165,25 +169,35 @@ func _doll() -> void:
 	var o := DOLL_ORIGIN
 	var sil := ColorRect.new()
 	sil.color = Color("1B1813")
-	sil.position = o + Vector2(0, 0)
-	sil.size = Vector2(376, 170)
+	sil.position = o
+	sil.size = Vector2(376, 128)
 	sil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body.add_child(sil)
-	_slot_cell("weapon", 0, o + Vector2(24, 12), Vector2(48, 96))
-	_slot_cell("head", 0, o + Vector2(164, 6), Vector2(48, 44))
-	_slot_cell("body", 0, o + Vector2(164, 54), Vector2(48, 64))
-	_slot_cell("feet", 0, o + Vector2(164, 122), Vector2(48, 44))
-	_slot_cell("trinket", 0, o + Vector2(304, 12), Vector2(48, 44))
+	_slot_cell("weapon", 0, o + Vector2(24, 8), Vector2(48, 92))
+	_slot_cell("head", 0, o + Vector2(164, 4), Vector2(48, 32))
+	_slot_cell("body", 0, o + Vector2(164, 38), Vector2(48, 52))
+	_slot_cell("feet", 0, o + Vector2(164, 92), Vector2(48, 32))
+	_slot_cell("trinket", 0, o + Vector2(304, 8), Vector2(48, 36))
 	var w: Dictionary = jax.weapon_stats()
-	_label("普通攻擊：%s" % ("近戰" if w["kind"] == "melee" else "遠程"), o + Vector2(10, 114), 8, Color("8C8470"))
+	_label("普通攻擊：%s" % ("近戰" if w["kind"] == "melee" else "遠程"), o + Vector2(10, 106), 8, Color("8C8470"))
 
 func _cartridges() -> void:
-	var y := 204
-	var groups := [["demolish", "%s\n［Q］" % jax.skill_name, 244], ["skate", "衝刺\n［空白］", 436]]
-	for g in groups:
-		_label(g[1], Vector2(g[2], y), 9, Color("75C7B0"))
+	# 技能列：Q／E／R／F 與衝刺，各 2 個配件槽。點技能槽＝指定配件裝進哪個技能。
+	var groups := ["demolish", "skill_e", "skill_r", "skill_f", "skate"]
+	for gi in groups.size():
+		var cart: String = groups[gi]
+		var x := 244 + (gi % 2) * 190
+		var y := 164 + (gi / 2) * 25
+		var locked: bool = not jax.skill_unlocked(cart) if cart != "skate" else false
+		var key: String = jax.SKILL_KEYS.get(cart, "空白")
+		var nm: String = jax.skill_name if cart == "demolish" else ("衝刺" if cart == "skate" else jax.EXTRA_SKILLS[cart]["name"])
+		var col := Color("75C7B0") if cart == target_cart else (Color("5E5848") if locked else Color("C9BC9A"))
+		_label("%s\n%s" % [key, nm.left(3)], Vector2(x, y - 1), 8, col)
+		if locked:
+			_label("Lv.%d 解鎖" % jax.EXTRA_SKILLS[cart]["unlock"], Vector2(x + 48, y + 5), 9, Color("5E5848"))
+			continue
 		for i in 2:
-			_slot_cell(g[0], i, Vector2(g[2] + 48 + i * 66, y), Vector2(64, 30))
+			_slot_cell(cart, i, Vector2(x + 34 + i * 76, y), Vector2(74, 22))
 
 func _slot_cell(cart: String, idx: int, pos: Vector2, cell_size: Vector2) -> void:
 	var item: Variant = jax.slots[cart][idx]
@@ -202,13 +216,13 @@ func _slot_cell(cart: String, idx: int, pos: Vector2, cell_size: Vector2) -> voi
 	var b := _cell(pos, cell_size, title, Color.WHITE if selected else border, CELL_ON if item != null else CELL, 3 if selected else 1)
 	b.add_theme_color_override("font_color", name_color)
 	b.add_theme_color_override("font_hover_color", name_color)
-	b.pressed.connect(_on_slot_pressed.bind(uid))
+	b.pressed.connect(_on_slot_pressed.bind(uid, cart))
 	b.mouse_entered.connect(_on_hover.bind(uid, cart))
 	b.mouse_exited.connect(_on_hover.bind(-1, ""))
 	b.gui_input.connect(_on_cell_input.bind(uid))
 
 func _inventory_grid() -> void:
-	_label("背包 %d／%d" % [jax.inventory.size(), jax.INVENTORY_LIMIT], Vector2(244, 240), 9, Color("C9BC9A"))
+	_label("背包 %d／%d　配件裝進：%s" % [jax.inventory.size(), jax.INVENTORY_LIMIT, jax.skill_name_of(target_cart)], Vector2(244, 240), 9, Color("C9BC9A"))
 	for n in jax.INVENTORY_LIMIT:
 		var pos := Vector2(244 + (n % 6) * 63, 254 + (n / 6) * 38)
 		if n >= jax.inventory.size():
@@ -258,8 +272,8 @@ func _describe(item: Dictionary) -> String:
 			t += "%s\n" % ("近戰・自動揮擊身邊敵人" if def["kind"] == "melee" else ("遠程・自動射擊最近的 3 個敵人" if def.get("pellets", 1) > 1 else "遠程・自動射擊最近的敵人"))
 			t += "傷害 %d　間隔 %.2f 秒　射程 %.1f 米\n" % [roundi(w["dmg"]), w["cd"], w["reach"]]
 	else:
-		var cname: String = jax.skill_name if cart == "demolish" else "滑板衝刺"
-		t += "[color=#9A927C]卡匣配件・%s[/color]\n%s\n" % [cname, def["desc"]]
+		var cname: String = "技能配件" if cart == "demolish" else "滑板衝刺"
+		t += "[color=#9A927C]%s[/color]\n%s\n" % [cname, def["desc"]]
 	t += "[color=#5E5848]────────[/color]\n"
 	var any := false
 	for part in jax.item_affix_text(item).split(", "):
@@ -276,8 +290,8 @@ func _describe(item: Dictionary) -> String:
 			current = jax.slots[cart][0]
 		if current != null:
 			t += "[color=#9A927C]裝上後會替換：%s[/color]" % jax.item_name(current)
-		elif cart not in GEAR_NAMES and jax.slots[cart].find(null) < 0:
-			t += "[color=#CC6657]兩個槽已滿，請先拆下一個[/color]"
+		elif cart not in GEAR_NAMES and jax.slots[target_cart if cart == "demolish" else cart].find(null) < 0:
+			t += "[color=#CC6657]選定的技能兩個槽已滿，請先拆下一個[/color]"
 		else:
 			t += "[color=#9A927C]雙擊裝上[/color]"
 	else:
@@ -324,9 +338,13 @@ func _on_select(uid: int) -> void:
 	message = ""
 	refresh()
 
-func _on_slot_pressed(uid: int) -> void:
+func _on_slot_pressed(uid: int, cart: String) -> void:
+	if cart in jax.SKILL_CARTS:
+		target_cart = cart
 	if uid >= 0:
 		_on_select(uid)
+	else:
+		refresh()
 
 func _on_cell_input(event: InputEvent, uid: int) -> void:
 	if uid >= 0 and event is InputEventMouseButton and event.pressed and event.double_click and event.button_index == MOUSE_BUTTON_LEFT:
@@ -334,7 +352,7 @@ func _on_cell_input(event: InputEvent, uid: int) -> void:
 		act("toggle_equip")
 
 func act(method: String) -> void:
-	var msg: String = jax.call(method, selected_uid)
+	var msg: String = jax.toggle_equip(selected_uid, target_cart) if method == "toggle_equip" else jax.call(method, selected_uid)
 	SFX.play(self, "ui_error" if msg != "" else "ui_click", -4.0)
 	if method == "scrap_item":
 		selected_uid = -1
