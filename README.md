@@ -12,15 +12,16 @@
 | `assets/characters/` | 角色模型、貼圖、動畫（Blender 出嘅檔案） |
 | `assets/environment/` | 街道、建築、道具模型 |
 | `assets/audio/` | 音效、音樂 |
-| `game/` | Godot 專案（遊戲本體） |
-| `tools/` | 小腳本、輔助工具 |
+| `game/` | 遊戲場景同腳本（Godot） |
+| 根目錄 `project.godot` | Godot 專案檔（放根目錄先讀到 `assets/`） |
+| `tools/` | 小腳本、輔助工具（例如 `tools/blender/` 模型生成腳本） |
 
 ## 現有文件
 
 - `docs/art/style-guide.md` — 美術風格（由兩條參考影片整理）
 - `docs/design/characters.md` — 四人角色設定（唯一來源）
 - `docs/design/game-plan.md` — 企劃草案、待決定問題、工具路線
-- `docs/guides/godot-setup.md` — Godot 安裝同第一個灰盒場景
+- `docs/guides/godot-setup.md` — 安裝 Godot、打開同玩 Jax 試玩版
 
 ## 規則
 
