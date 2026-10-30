@@ -21,6 +21,7 @@ var dead := false
 var level := 1
 var xp := 0
 var levelup_flash := 0.0
+var pending_choices := 0
 var dash_left := 0.0
 var dash_timer := 0.0
 var dash_dir := Vector3.ZERO
@@ -44,9 +45,34 @@ func gain_xp(amount: int) -> void:
 		xp -= xp_to_next()
 		level += 1
 		max_hp += 10
-		skill_damage += 5
 		hp = max_hp
 		levelup_flash = 1.5
+		pending_choices += 1
+
+const UPGRADES := [
+	{"id": "damage", "label": "Heavier Hits: Demolish damage +20%"},
+	{"id": "radius", "label": "Wider Shockwave: Demolish range +0.6m"},
+	{"id": "cooldown", "label": "Quick Reset: Demolish cooldown -15%"},
+	{"id": "speed", "label": "Fast Feet: move speed +12%"},
+	{"id": "dash", "label": "Smooth Ride: Dash cooldown -20%"},
+	{"id": "vitality", "label": "Thick Skin: max HP +25"},
+]
+
+func apply_upgrade(id: String) -> void:
+	match id:
+		"damage":
+			skill_damage = int(ceil(skill_damage * 1.2))
+		"radius":
+			skill_radius += 0.6
+		"cooldown":
+			skill_cooldown *= 0.85
+		"speed":
+			speed *= 1.12
+		"dash":
+			dash_cooldown *= 0.8
+		"vitality":
+			max_hp += 25
+			hp += 25
 
 func heal(amount: int) -> void:
 	hp = mini(hp + amount, max_hp)
