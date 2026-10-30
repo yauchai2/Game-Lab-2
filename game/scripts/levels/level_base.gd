@@ -86,7 +86,7 @@ func person(pos: Vector3, body_color: Color, label := "", height := 1.5) -> Node
 		l.name = "Label"
 		l.text = label
 		l.position = Vector3(0, height + 0.5, 0)
-		l.font_size = 28
+		l.font_size = 40
 		l.pixel_size = 0.01
 		l.outline_size = 8
 		l.outline_modulate = NAVY

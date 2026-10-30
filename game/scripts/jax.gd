@@ -469,10 +469,10 @@ func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void
 		sorted.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(center) < b.global_position.distance_to(center))
 		marked = sorted.slice(0, 2)
 	if opts["overload"] > 0.0 and not marked.is_empty():
-		var target: Node3D = marked[0]
-		target.take_damage(int(dmg * opts["overload"]), center, 12.0)
-		if "cooldown" in target:
-			target.cooldown = 2.0
+		var focus: Node3D = marked[0]
+		focus.take_damage(int(dmg * opts["overload"]), center, 12.0)
+		if "cooldown" in focus:
+			focus.cooldown = 2.0
 	if opts["link"] > 0.0 and marked.size() == 2:
 		marked[0].take_damage(int(dmg * opts["link"]), center, 2.0)
 		marked[1].take_damage(int(dmg * opts["link"]), center, 2.0)

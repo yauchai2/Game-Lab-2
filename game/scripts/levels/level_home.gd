@@ -122,7 +122,7 @@ func _build_logic() -> void:
 	for d in rack_defs:
 		var item_box := box(Vector3(-5.7, 1.2, d["z"]), Vector3(0.4, 0.4, 0.4), YELLOW)
 		var lbl := sign3d(d["label"], Vector3(-5.2, 2.0, d["z"]), 20)
-		var it := interact(Vector3(-5.0, 0, d["z"]), "拿起" + d["label"], _on_rack.bind(d, item_box, lbl), 1.2)
+		var it := interact(Vector3(-5.0, 0, d["z"]), "拿起" + d["label"], _on_rack.bind(d), 1.2)
 		it.enabled = false
 		rack_items.append({"it": it, "box": item_box, "label": lbl})
 	interact(Vector3(-3.2, 0, 2.6), "工作枱", _on_bench, 2.0, false).enabled = false
@@ -130,6 +130,9 @@ func _build_logic() -> void:
 	interact(Vector3(5.2, 0, 0.9), "出門", _on_door, 2.6, false)
 
 func _start() -> void:
+	if CHAPTER.has("boss2_done"):
+		_start_ending()
+		return
 	if CHAPTER.has("pawn_info"):
 		_start_return()
 		return
@@ -140,6 +143,57 @@ func _start() -> void:
 	jax.set_process_unhandled_input(false)
 	say("", "（門外有人拍門）「醒了嗎？你的車又擋住別人做生意。」", 3.2)
 	_update_objective()
+
+## 結局：街坊把材料放在桌上，主角坐下來吃完三明治。
+var eating := false
+var finished := false
+
+func _start_ending() -> void:
+	jax.global_position = Vector3(0, 0.87, 3)
+	tv_screen.get_node("Mesh").material_override = _mat(Color("75C7B0"), true)
+	for it in get_tree().get_nodes_in_group("interactables"):
+		it.enabled = false
+	var guests := []
+	if CHAPTER.has("cl03_fixed"):
+		guests.append(["CL-03", MINT, "放下一包起司"])
+	if CHAPTER.has("mechanic_gift"):
+		guests.append(["修車師傅", Color("859AC1"), "放下一瓶醬"])
+	if CHAPTER.has("roofer_gift"):
+		guests.append(["天台街坊", YELLOW, "放下一把青菜"])
+	if CHAPTER.flags.get("restore_choice", "self") == "both":
+		guests.append(["鄰街街坊", Color("CC6657"), "放下一盒火腿"])
+	for i in guests.size():
+		person(Vector3(-2.5 + i * 1.8, 0, 0.8), guests[i][1], guests[i][0])
+	interact(Vector3(1.4, 0, -1.4), "坐下，吃", _on_eat, 2.4)
+	say("", "街坊把不同地方找來的材料放在桌上。", 3.2)
+	for g in guests:
+		say(g[0], "（%s）" % g[2], 1.8)
+	objective("坐下，吃（走近桌子按 E）")
+
+func _on_eat() -> void:
+	eating = true
+	jax.global_position = Vector3(1.4, 0.87, -1.0)
+	jax.set_physics_process(false)
+	jax.set_process_unhandled_input(false)
+	say("", "你坐下來，咬了一口。三明治有點涼，餡料是對的。", 3.6)
+	say("", "吃完了。", 1.8)
+	objective("")
+	get_tree().create_timer(6.0).timeout.connect(_ending_tv)
+
+func _ending_tv() -> void:
+	say("", "你把紀錄裝置接上舊電視。畫面是一張城市地圖：自己的街亮著，遠處有很多街區正一個一個熄滅。", 5.0)
+	say("", "其中一個，是室友以前住的地方。房間安靜了一陣。", 3.6)
+	say("Skye", "（指了指畫面，再指指牆上的鬧鐘：明天要早點起來。）", 3.6)
+	get_tree().create_timer(12.0).timeout.connect(func() -> void:
+		finished = true
+		_story_hud().title("第一章完成", "第二章：去找其他被抹走的地方（未製作）", 6.0)
+		objective("第一章完成。按 R 重新開始"))
+
+func _unhandled_input(event: InputEvent) -> void:
+	if finished and event is InputEventKey and event.pressed and event.keycode == KEY_R:
+		CHAPTER.reset()
+		jax.save_progress(false)
+		get_tree().reload_current_scene()
 
 ## 第一章中段後回家：拿頭盔，室友留字條，出門追運輸車。
 func _start_return() -> void:
@@ -206,7 +260,7 @@ func _on_note() -> void:
 	say("字條", "「吃光了。樓下買吧，順便幫我拿一件東西。」", 3.4)
 	_done("note")
 
-func _on_rack(d: Dictionary, item_box: Node3D, lbl: Node3D) -> void:
+func _on_rack(d: Dictionary) -> void:
 	give_and_equip(d["type"])
 	say("", d["line"], 3.2)
 	for r in rack_items:
