@@ -4,6 +4,7 @@ extends CanvasLayer
 
 const K := 0.10
 static var enabled := true
+static var kick := 0.0
 
 var rect := ColorRect.new()
 var mat := ShaderMaterial.new()
@@ -15,6 +16,7 @@ uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
 uniform float k = 0.10;
 uniform float aspect = 1.7778;
 uniform float t = 0.0;
+uniform float kick = 0.0;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -37,8 +39,8 @@ void fragment() {
 	float glitch = step(0.985, hash(vec2(row, floor(t * 4.0)))) * (hash(vec2(row, t)) - 0.5) * 0.02;
 	// 慢速滾動的亮帶
 	float bar = smoothstep(0.0, 0.06, fract(uv.y * 0.6 - t * 0.05)) * (1.0 - smoothstep(0.06, 0.14, fract(uv.y * 0.6 - t * 0.05)));
-	w.x += glitch + sin(uv.y * 40.0 + t * 3.0) * 0.0006;
-	float ca = 0.0022 + bar * 0.002;
+	w.x += glitch + kick * (hash(vec2(row, t * 20.0)) - 0.5) * 0.03 + sin(uv.y * 40.0 + t * 3.0) * 0.0006;
+	float ca = 0.0022 + bar * 0.002 + kick * 0.012;
 	vec3 col;
 	col.r = texture(screen_tex, clamp(w + vec2(ca, 0.0), 0.0, 1.0)).r;
 	col.g = texture(screen_tex, clamp(w, 0.0, 1.0)).g;
@@ -72,6 +74,8 @@ func _process(delta: float) -> void:
 	time += delta
 	mat.set_shader_parameter("t", time)
 	mat.set_shader_parameter("k", K)
+	kick = move_toward(kick, 0.0, delta * 3.0)
+	mat.set_shader_parameter("kick", kick)
 	rect.visible = enabled
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -21,6 +21,7 @@ const SFX := preload("res://game/scripts/sfx.gd")
 const PICKUP := preload("res://game/scripts/pickup.gd")
 const PROJECTILE := preload("res://game/scripts/projectile.gd")
 const FLOATY := preload("res://game/scripts/floaty.gd")
+const HITFX := preload("res://game/scripts/hitfx.gd")
 
 var show_bar := true
 var element := "phys"
@@ -38,6 +39,18 @@ func _ready() -> void:
 	mesh.material_override = _material
 	if show_bar:
 		_make_bar()
+
+# 受擊反應：火花、身體被打扁彈回、輕微震鏡；重擊多一點頓幀。
+func _hit_react(frac: float) -> void:
+	HITFX.sparks(get_parent(), global_position + Vector3(0, 1.1, 0), Color("F4F0E4"), 4 + int(minf(frac, 1.0) * 14.0), 1.0 + minf(frac, 1.0))
+	HITFX.shake(self, 0.04 + minf(frac, 1.0) * 0.25)
+	if frac >= 0.2:
+		HITFX.hit_stop(get_tree(), 0.04)
+		HITFX.kick(0.3)
+	var base := Vector3.ONE
+	mesh.scale = Vector3(1.3, 0.75, 1.3)
+	var tw := create_tween()
+	tw.tween_property(mesh, "scale", base, 0.14)
 
 func _bar_mesh(m: MeshInstance3D, color: Color, width: float) -> void:
 	var q := QuadMesh.new()
@@ -74,8 +87,11 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) ->
 	if hp <= 0:
 		return
 	hp -= amount
-	FLOATY.spawn(get_parent(), global_position + Vector3(0, 1.9, 0), str(amount))
+	var frac := float(amount) / float(max_hp)
+	var heavy := frac >= 0.2
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 1.9, 0), str(amount), Color("E6D26A") if heavy else Color("F4F0E4"), heavy)
 	_update_bar()
+	_hit_react(frac)
 	wake()
 	var away := global_position - from_pos
 	away.y = 0.0
@@ -89,6 +105,11 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) ->
 		if camp != "":
 			remove_from_group(camp)
 		collision_layer = 0
+		HITFX.sparks(get_parent(), global_position + Vector3(0, 1.0, 0), base_color.lightened(0.3), 18, 1.6)
+		HITFX.hit_stop(get_tree(), 0.05)
+		HITFX.shake(self, 0.18)
+		HITFX.kick(0.5)
+		knockback *= 1.8
 		bar_back.visible = false
 		bar_fill.visible = false
 		_drop_loot()

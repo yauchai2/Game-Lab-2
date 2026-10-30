@@ -54,6 +54,7 @@ const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
 const FLOATY := preload("res://game/scripts/floaty.gd")
 const VHS := preload("res://game/scripts/vhs.gd")
+const HITFX := preload("res://game/scripts/hitfx.gd")
 const SKYE_MODEL := preload("res://assets/characters/skye.glb")
 
 var char_id := "jax"
@@ -70,6 +71,7 @@ const EXTRA_SKILLS := {
 }
 var extra_timers := {"skill_e": 0.0, "skill_r": 0.0, "skill_f": 0.0}
 var buff_left := 0.0
+var hurt_flash := 0.0
 ## 補給：汽水（即時回血）與便當（持續回血），擊殺敵人回充。
 const FLASKS := {
 	"soda": {"name": "汽水", "max": 3, "kills": 4, "desc": "即時回復 45% 生命"},
@@ -489,6 +491,11 @@ func take_damage(amount: int, element := "phys") -> void:
 		amount = maxi(1, roundi(amount * (1.0 - resist_of(element) / 100.0)))
 	hp = maxi(hp - amount, 0)
 	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.0, 0), str(amount), ELEMENT_COLORS.get(element, Color("CC6657")), true)
+	hurt_flash = 0.4
+	HITFX.sparks(get_parent(), global_position + Vector3(0, 1.0, 0), ELEMENT_COLORS.get(element, Color("CC6657")), 10, 1.2)
+	HITFX.shake(self, 0.3)
+	HITFX.kick(1.0)
+	HITFX.hit_stop(get_tree(), 0.05)
 	SFX.play(self, "death" if hp == 0 else "hurt", -3.0)
 	if hp == 0:
 		dead = true
@@ -753,6 +760,9 @@ func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void
 		var cam := get_viewport().get_camera_3d()
 		if cam and cam.has_method("add_shake"):
 			cam.add_shake(minf(0.15 + hit_count * 0.05, 0.4))
+	HITFX.sparks(get_parent(), center + Vector3(0, 0.3, 0), Color("E6D26A"), 14 + mini(hit_count * 2, 14), 1.8)
+	if hit_count > 0:
+		HITFX.kick(0.5)
 	_spawn_shockwave(center, radius)
 
 func _explode(pos: Vector3, radius: float, dmg: int) -> void:
@@ -800,6 +810,7 @@ func _physics_process(delta: float) -> void:
 	for k in extra_timers:
 		extra_timers[k] = maxf(extra_timers[k] - delta, 0.0)
 	buff_left = maxf(buff_left - delta, 0.0)
+	hurt_flash = maxf(hurt_flash - delta, 0.0)
 	if bento_left > 0.0 and not dead:
 		bento_left -= delta
 		regen_accum += max_hp * 0.4 / 6.0 * delta
@@ -902,6 +913,8 @@ func _tracer(a: Vector3, b: Vector3) -> void:
 	mi.global_position = (a + b) / 2.0
 	mi.look_at(b, Vector3.UP)
 	get_tree().create_timer(0.07).timeout.connect(mi.queue_free)
+	HITFX.sparks(get_parent(), a, Color("F4E27A"), 4, 0.8)
+	HITFX.shake(self, 0.03)
 
 func _animate_limbs(delta: float, moving: bool) -> void:
 	var swing := 0.0

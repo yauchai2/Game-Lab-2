@@ -4,6 +4,7 @@ const SFX := preload("res://game/scripts/sfx.gd")
 const BAR_SIZE := Vector2(140, 8)
 
 var orb := Control.new()
+var hurt_overlay := ColorRect.new()
 var break_back := ColorRect.new()
 var break_fill := ColorRect.new()
 var break_label := Label.new()
@@ -44,6 +45,10 @@ func _ready() -> void:
 	boss_label.position = Vector2(430, 30)
 	boss_label.visible = false
 	add_child(boss_label)
+	hurt_overlay.color = Color(0.8, 0.1, 0.08, 0.0)
+	hurt_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hurt_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(hurt_overlay)
 	orb.set_script(load("res://game/scripts/orb.gd"))
 	orb.position = Vector2(8, 300)
 	orb.size = Vector2(56, 56)
@@ -108,6 +113,7 @@ func _ready() -> void:
 	add_child(banner)
 
 func _process(_delta: float) -> void:
+	hurt_overlay.color.a = jax.hurt_flash * 0.6
 	orb.ratio = float(jax.hp) / float(jax.max_hp)
 	orb.label_text = "%d" % jax.hp
 	orb.queue_redraw()
