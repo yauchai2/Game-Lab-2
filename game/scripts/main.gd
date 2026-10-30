@@ -51,7 +51,18 @@ func _add_boundary() -> void:
 		add_child(body)
 		body.global_position = w[0]
 
+## 3D 畫面固定渲染成約 1280 闊（低解像度），介面則用視窗原生解像度畫，所以字永遠清晰。
+const RENDER_WIDTH := 1280.0
+
+func _fit_3d_resolution() -> void:
+	var root := get_tree().root
+	var window_w := float(root.get_window().size.x)
+	root.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	root.scaling_3d_scale = clampf(RENDER_WIDTH / maxf(window_w, 1.0), 0.25, 1.0)
+
 func _ready() -> void:
+	_fit_3d_resolution()
+	get_tree().root.size_changed.connect(_fit_3d_resolution)
 	_add_boundary()
 	jax.global_position = START_POS
 	for i in CAMPS.size():

@@ -57,7 +57,7 @@
 
 視窗放大或縮小時，低解像度畫面會**填滿整個視窗，不留黑邊**：像素大小跟視窗縮放，視窗愈闊（或愈高）能看到愈多街景；介面貼住畫面四角與中央，不會被拉伸。
 
-專案用 960×540 低解析度渲染（1080p 螢幕剛好放大 2 倍，4K 放大 4 倍）（`project.godot` 內 `display/window/stretch`），所以畫面有像素階梯感，對應參考影片嘅復古低解析風格。最新畫面預覽：`docs/art/gameplay-preview.png`。
+3D 畫面固定渲染成約 1280 闊（`main.gd` 的 `RENDER_WIDTH`，用 `scaling_3d_scale` 隨視窗大小調整），介面則用視窗原生解析度畫（`project.godot` 的 stretch 模式為 `canvas_items`），所以字永遠清晰，3D 保持低解析度。最新畫面預覽：`docs/art/gameplay-preview.png`。
 
 ## 卡匣配件（隨機掉落 + 砌 build）
 
