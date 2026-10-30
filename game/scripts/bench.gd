@@ -319,6 +319,7 @@ func update_detail() -> void:
 	var s := "[color=#75C7B0]屬性[/color]\n"
 	s += "生命 %d／%d　移速 %.1f\n" % [jax.hp, jax.max_hp, jax.speed]
 	s += "普攻 %s　傷害 %d　%.2f 秒　射程 %.1f\n" % ["近戰" if w["kind"] == "melee" else "遠程", roundi(w["dmg"]), w["cd"], w["reach"]]
+	s += "護甲 %d（物理減傷 %d%%）\n抗性　火 %d%%　冰 %d%%　電 %d%%\n" % [roundi(jax.armor_value()), roundi(jax.armor_reduction(20.0) * 100.0), roundi(jax.resist_of("fire")), roundi(jax.resist_of("cold")), roundi(jax.resist_of("lightning"))]
 	s += "技能傷害 +%d%%　技能冷卻 -%d%%" % [roundi(jax.affix_total("dmg", "demolish")), roundi(jax.affix_total("cd", "demolish"))]
 	if message != "":
 		s += "\n[color=#CC6657]%s[/color]" % message

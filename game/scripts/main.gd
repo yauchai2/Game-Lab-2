@@ -100,6 +100,7 @@ func _spawn_camp(index: int) -> void:
 			enemy.ranged = true
 			enemy.max_hp = 25 + index * 5
 			enemy.base_color = Color("9B8ACC")
+			enemy.element = ["phys", "fire", "cold", "lightning"][index]
 		add_child(enemy)
 		var a := TAU * i / total
 		enemy.global_position = camp["pos"] + Vector3(cos(a), 0.05, sin(a)) * 2.0

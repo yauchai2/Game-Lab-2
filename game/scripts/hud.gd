@@ -74,6 +74,7 @@ func _ready() -> void:
 	info.add_theme_font_size_override("font_size", 10)
 	add_child(info)
 	_build_skill_bar()
+	_build_flasks()
 	lines.set_script(load("res://game/scripts/speed_lines.gd"))
 	add_child(lines)
 	card_band.color = Color(0.16, 0.18, 0.23, 0.8)
@@ -113,6 +114,7 @@ func _process(_delta: float) -> void:
 	xp_fill.size.x = BAR_SIZE.x * float(jax.xp) / float(jax.xp_to_next())
 	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts]
 	_update_skill_bar()
+	_update_flasks()
 	var b: Variant = get_parent().boss
 	var boss_alive: bool = b != null and is_instance_valid(b) and b.hp > 0 and b.awake
 	boss_back.visible = boss_alive
@@ -181,6 +183,42 @@ func _build_skill_bar() -> void:
 		sub.add_theme_color_override("font_color", Color("9AA3AD"))
 		back.add_child(sub)
 		skill_boxes[defs[i][0]] = {"cool": cool, "title": title, "sub": sub}
+
+var flask_labels := {}
+
+func _build_flasks() -> void:
+	var i := 0
+	for k in ["soda", "bento"]:
+		var back := ColorRect.new()
+		back.color = Color(0.16, 0.18, 0.23, 0.85)
+		back.size = Vector2(40, 30)
+		back.position = Vector2(548 + i * 44, 326)
+		add_child(back)
+		var key := Label.new()
+		key.text = str(i + 1)
+		key.position = Vector2(2, -1)
+		key.add_theme_font_size_override("font_size", 8)
+		key.add_theme_color_override("font_color", Color("D6D573"))
+		back.add_child(key)
+		var title := Label.new()
+		title.position = Vector2(2, 6)
+		title.add_theme_font_size_override("font_size", 10)
+		back.add_child(title)
+		var sub := Label.new()
+		sub.position = Vector2(2, 17)
+		sub.add_theme_font_size_override("font_size", 8)
+		back.add_child(sub)
+		flask_labels[k] = [title, sub]
+		i += 1
+
+func _update_flasks() -> void:
+	for k in flask_labels:
+		var def: Dictionary = jax.FLASKS[k]
+		var ch: int = jax.flask_charges[k]
+		flask_labels[k][0].text = def["name"]
+		flask_labels[k][0].add_theme_color_override("font_color", Color("E7DFC9") if ch > 0 else Color("6B7288"))
+		flask_labels[k][1].text = "%d／%d" % [ch, def["max"]]
+		flask_labels[k][1].add_theme_color_override("font_color", Color("75C7B0") if ch > 0 else Color("6B7288"))
 
 func _set_box(id: String, title: String, sub: String, remain: float, total: float, locked := false) -> void:
 	var box: Dictionary = skill_boxes[id]

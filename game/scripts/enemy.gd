@@ -23,6 +23,7 @@ const PROJECTILE := preload("res://game/scripts/projectile.gd")
 const FLOATY := preload("res://game/scripts/floaty.gd")
 
 var show_bar := true
+var element := "phys"
 var bar_back := MeshInstance3D.new()
 var bar_fill := MeshInstance3D.new()
 
@@ -145,6 +146,9 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 func _drop_loot() -> void:
+	var killer := get_tree().get_first_node_in_group("player")
+	if killer:
+		killer.on_kill()
 	_spawn_pickup("xp", 10, Vector3(0.3, 0, 0))
 	_spawn_pickup("receipt", 2 if ranged else 1, Vector3(0, 0, 0.3))
 	if randf() < 0.35:
@@ -167,5 +171,6 @@ func _shoot(dir: Vector3) -> void:
 	var b := Node3D.new()
 	b.set_script(PROJECTILE)
 	b.direction = dir
+	b.element = element
 	get_parent().add_child(b)
 	b.global_position = global_position + Vector3(0, 1.0, 0) + dir * 0.8

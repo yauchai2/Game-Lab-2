@@ -69,6 +69,15 @@ const EXTRA_SKILLS := {
 }
 var extra_timers := {"skill_e": 0.0, "skill_r": 0.0, "skill_f": 0.0}
 var buff_left := 0.0
+## 補給：汽水（即時回血）與便當（持續回血），擊殺敵人回充。
+const FLASKS := {
+	"soda": {"name": "汽水", "max": 3, "kills": 4, "desc": "即時回復 45% 生命"},
+	"bento": {"name": "便當", "max": 2, "kills": 6, "desc": "6 秒內回復 40% 生命"},
+}
+var flask_charges := {"soda": 3, "bento": 2}
+var flask_progress := {"soda": 0, "bento": 0}
+var bento_left := 0.0
+var regen_accum := 0.0
 
 func _ready() -> void:
 	add_to_group("player")
@@ -174,15 +183,15 @@ const ITEM_TYPES := {
 	"pistol": {"name": "手槍", "cart": "weapon", "kind": "ranged", "dmg": 7, "cd": 0.4, "reach": 9.0},
 	"rifle": {"name": "步槍", "cart": "weapon", "kind": "ranged", "dmg": 13, "cd": 0.75, "reach": 11.0},
 	"shotgun": {"name": "散彈槍", "cart": "weapon", "kind": "ranged", "dmg": 6, "cd": 0.9, "reach": 6.0, "pellets": 3},
-	"cap": {"name": "冷帽", "cart": "head", "base": {"hp": 15}},
+	"cap": {"name": "冷帽", "cart": "head", "base": {"hp": 15, "armor": 10}},
 	"goggles": {"name": "護目鏡", "cart": "head", "base": {"aspd": 10}},
-	"jacket": {"name": "工裝外套", "cart": "body", "base": {"hp": 30}},
-	"vest": {"name": "帆布背心", "cart": "body", "base": {"sdmg": 8}},
-	"sneakers": {"name": "厚底板鞋", "cart": "feet", "base": {"speed": 6}},
+	"jacket": {"name": "工裝外套", "cart": "body", "base": {"hp": 30, "armor": 20}},
+	"vest": {"name": "帆布背心", "cart": "body", "base": {"sdmg": 8, "armor": 15}},
+	"sneakers": {"name": "厚底板鞋", "cart": "feet", "base": {"speed": 6, "rcold": 8}},
 	"springs": {"name": "彈跳鞋", "cart": "feet", "base": {"scd": 8}},
-	"ironchain": {"name": "粗鎖鏈", "cart": "trinket", "base": {"sdmg": 10}},
-	"watch": {"name": "懷錶", "cart": "trinket", "base": {"scd": 8}},
-	"charm": {"name": "幸運符", "cart": "trinket", "base": {"atk": 10}},
+	"ironchain": {"name": "粗鎖鏈", "cart": "trinket", "base": {"sdmg": 10, "armor": 12}},
+	"watch": {"name": "懷錶", "cart": "trinket", "base": {"scd": 8, "rfire": 8}},
+	"charm": {"name": "幸運符", "cart": "trinket", "base": {"atk": 10, "rlight": 8}},
 }
 const GEAR_SLOTS := ["weapon", "head", "body", "feet", "trinket"]
 const RARITY_NAMES := ["普通", "魔法", "稀有"]
@@ -198,10 +207,14 @@ const AFFIXES := {
 	"wrange": {"min": 0.3, "max": 0.8, "text": "射程 +%.1f米"},
 	"sdmg": {"min": 6.0, "max": 14.0, "text": "技能傷害 +%d%%"},
 	"scd": {"min": 4.0, "max": 10.0, "text": "技能冷卻 -%d%%"},
+	"armor": {"min": 10.0, "max": 28.0, "text": "護甲 +%d"},
+	"rfire": {"min": 6.0, "max": 16.0, "text": "火焰抗性 +%d%%"},
+	"rcold": {"min": 6.0, "max": 16.0, "text": "冰凍抗性 +%d%%"},
+	"rlight": {"min": 6.0, "max": 16.0, "text": "閃電抗性 +%d%%"},
 }
 const POOL_ATTACH := ["dmg", "range", "cd"]
 const POOL_WEAPON := ["atk", "aspd", "wrange"]
-const POOL_GEAR := ["hp", "speed", "sdmg", "scd", "atk", "aspd"]
+const POOL_GEAR := ["hp", "speed", "sdmg", "scd", "atk", "aspd", "armor", "rfire", "rcold", "rlight"]
 const INVENTORY_LIMIT := 12
 const REROLL_COST := 2
 const UPGRADE_COSTS := [3, 6]
@@ -431,14 +444,50 @@ func scrap_item(uid: int) -> String:
 	recalc_gear()
 	return ""
 
+func on_kill() -> void:
+	for k in FLASKS:
+		if flask_charges[k] < FLASKS[k]["max"]:
+			flask_progress[k] += 1
+			if flask_progress[k] >= FLASKS[k]["kills"]:
+				flask_progress[k] = 0
+				flask_charges[k] += 1
+
+func use_flask(kind: String) -> void:
+	if dead or flask_charges[kind] <= 0 or hp >= max_hp:
+		return
+	flask_charges[kind] -= 1
+	SFX.play(self, "pickup_hp", -4.0)
+	if kind == "soda":
+		heal(int(max_hp * 0.45))
+	else:
+		bento_left = 6.0
+
 func heal(amount: int) -> void:
 	hp = mini(hp + amount, max_hp)
 
-func take_damage(amount: int) -> void:
+## 防禦：物理傷害靠護甲（減傷 = 護甲／(護甲＋10×傷害)，上限 80%），元素傷害靠對應抗性（上限 75%）。
+const ELEMENT_RESIST := {"fire": "rfire", "cold": "rcold", "lightning": "rlight"}
+const ELEMENT_COLORS := {"phys": Color("CC6657"), "fire": Color("E0833A"), "cold": Color("75B7E0"), "lightning": Color("E6D26A")}
+
+func armor_value() -> float:
+	return gear_total("armor")
+
+func armor_reduction(amount: float) -> float:
+	var a := armor_value()
+	return clampf(a / (a + 10.0 * maxf(amount, 1.0)), 0.0, 0.8)
+
+func resist_of(element: String) -> float:
+	return clampf(gear_total(ELEMENT_RESIST[element]), 0.0, 75.0) if ELEMENT_RESIST.has(element) else 0.0
+
+func take_damage(amount: int, element := "phys") -> void:
 	if dead or iframe_left > 0.0:
 		return
+	if element == "phys":
+		amount = maxi(1, roundi(amount * (1.0 - armor_reduction(amount))))
+	else:
+		amount = maxi(1, roundi(amount * (1.0 - resist_of(element) / 100.0)))
 	hp = maxi(hp - amount, 0)
-	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.0, 0), str(amount), Color("CC6657"), true)
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.0, 0), str(amount), ELEMENT_COLORS.get(element, Color("CC6657")), true)
 	SFX.play(self, "death" if hp == 0 else "hurt", -3.0)
 	if hp == 0:
 		dead = true
@@ -464,6 +513,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			use_extra("skill_r")
 		elif event.keycode == KEY_F:
 			use_extra("skill_f")
+		elif event.keycode == KEY_1:
+			use_flask("soda")
+		elif event.keycode == KEY_2:
+			use_flask("bento")
 		elif event.keycode == KEY_SPACE:
 			# 有按方向鍵就朝該方向衝刺，否則朝滑鼠位置。
 			var wasd := _move_input()
@@ -745,6 +798,12 @@ func _physics_process(delta: float) -> void:
 	for k in extra_timers:
 		extra_timers[k] = maxf(extra_timers[k] - delta, 0.0)
 	buff_left = maxf(buff_left - delta, 0.0)
+	if bento_left > 0.0 and not dead:
+		bento_left -= delta
+		regen_accum += max_hp * 0.4 / 6.0 * delta
+		if regen_accum >= 1.0:
+			heal(int(regen_accum))
+			regen_accum -= int(regen_accum)
 	attack_timer = maxf(attack_timer - delta * (1.3 if buff_left > 0.0 else 1.0), 0.0)
 	attack_swing = maxf(attack_swing - delta * 5.0, 0.0)
 	dash_timer = maxf(dash_timer - delta, 0.0)
