@@ -23,6 +23,7 @@ func _spawn_wave() -> void:
 	var count := 2 + wave
 	for i in count:
 		var enemy := ENEMY_SCENE.instantiate()
+		enemy.max_hp = 40 + (wave - 1) * 8
 		var angle := TAU * i / count + randf() * 0.5
 		var pos := jax.global_position + Vector3(cos(angle), 0.0, sin(angle)) * 12.0
 		pos.x = clampf(pos.x, -ARENA_LIMIT, ARENA_LIMIT)

@@ -13,6 +13,8 @@ var cooldown := 0.0
 var knockback := Vector3.ZERO
 var _material := StandardMaterial3D.new()
 
+const PICKUP := preload("res://game/scripts/pickup.gd")
+
 @onready var mesh: MeshInstance3D = $Mesh
 
 func _ready() -> void:
@@ -35,6 +37,7 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO) -> void:
 	if hp <= 0:
 		remove_from_group("enemies")
 		collision_layer = 0
+		_drop_loot()
 		var die := create_tween()
 		die.tween_property(self, "scale", Vector3(1.2, 0.01, 1.2), 0.25)
 		die.tween_callback(queue_free)
@@ -62,3 +65,16 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	move_and_slide()
+
+func _drop_loot() -> void:
+	_spawn_pickup("xp", 10, Vector3(0.3, 0, 0))
+	if randf() < 0.35:
+		_spawn_pickup("hp", 20, Vector3(-0.3, 0, 0))
+
+func _spawn_pickup(kind: String, value: int, offset: Vector3) -> void:
+	var p := Node3D.new()
+	p.set_script(PICKUP)
+	p.kind = kind
+	p.value = value
+	get_parent().add_child(p)
+	p.global_position = global_position + offset + Vector3(0, 0.5, 0)
