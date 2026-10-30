@@ -23,6 +23,7 @@
 - `docs/art/asset-spec.md` — 換模型與場景的資產規格
 - `docs/design/world.md` — 世界觀（疊域、勢力、衝突、反社會基調、命名規則）
 - `docs/design/first-district.md` — 第一區橋底街流程（開場、教學戰、頭目、結算選擇）
+- `docs/design/chapter-1-story.md` — 第一章《街外有事》「吃完再說」大綱（階段化製作、已確認事項）
 - `docs/design/differentiation-ideas.md` — 與 PoE2 的差異化研究與構想（草案）
 - `docs/design/characters.md` — 四人角色設定（唯一來源，含背景、口吻、成長弧線）
 - `docs/design/game-plan.md` — 企劃草案、待決定問題、工具路線
