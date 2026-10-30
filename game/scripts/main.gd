@@ -27,7 +27,30 @@ var music_on := true
 
 @onready var jax: CharacterBody3D = $Jax
 
+# 場地邊界：看不見的牆，角色與敵人都不會走出街區。
+const BOUNDS_X := 22.0
+const BOUNDS_Z_NORTH := -21.0
+const BOUNDS_Z_SOUTH := 19.0
+
+func _add_boundary() -> void:
+	var walls := [
+		[Vector3(-BOUNDS_X - 1.0, 5.0, (BOUNDS_Z_NORTH + BOUNDS_Z_SOUTH) / 2.0), Vector3(2.0, 10.0, 80.0)],
+		[Vector3(BOUNDS_X + 1.0, 5.0, (BOUNDS_Z_NORTH + BOUNDS_Z_SOUTH) / 2.0), Vector3(2.0, 10.0, 80.0)],
+		[Vector3(0.0, 5.0, BOUNDS_Z_NORTH - 1.0), Vector3(80.0, 10.0, 2.0)],
+		[Vector3(0.0, 5.0, BOUNDS_Z_SOUTH + 1.0), Vector3(80.0, 10.0, 2.0)],
+	]
+	for w in walls:
+		var body := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = w[1]
+		shape.shape = box
+		body.add_child(shape)
+		add_child(body)
+		body.global_position = w[0]
+
 func _ready() -> void:
+	_add_boundary()
 	jax.global_position = START_POS
 	for i in CAMPS.size():
 		_spawn_camp(i)

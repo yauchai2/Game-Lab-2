@@ -250,7 +250,7 @@ func item_affix_text(item: Dictionary) -> String:
 	elif def.has("base"):
 		for k in def["base"]:
 			var v: float = def["base"][k] * item_power(item)
-			parts.append(AFFIXES[k]["text"] % (v if k == "wrange" else roundi(v)))
+			parts.append(AFFIXES[k]["text"] % (v if k == "wrange" else float(roundi(v))))
 	for a in item["affixes"]:
 		parts.append(AFFIXES[a["kind"]]["text"] % a["value"])
 	return ", ".join(parts)
@@ -429,18 +429,31 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().reload_current_scene()
 		return
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			var p: Variant = _pick_point(event.position)
-			if p != null:
-				target = p
-				has_target = true
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
 			use_skill()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_Q:
 			use_skill()
 		elif event.keycode == KEY_SPACE:
-			dash(_pick_point(get_viewport().get_mouse_position()))
+			# 有按方向鍵就朝該方向衝刺，否則朝滑鼠位置。
+			var wasd := _move_input()
+			if wasd != Vector3.ZERO:
+				dash(global_position + wasd)
+			else:
+				dash(_pick_point(get_viewport().get_mouse_position()))
+
+# WASD（或方向鍵）移動：鏡頭固定朝北，W＝畫面上方。
+func _move_input() -> Vector3:
+	var v := Vector3.ZERO
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		v.z -= 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		v.z += 1.0
+	if Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT):
+		v.x -= 1.0
+	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
+		v.x += 1.0
+	return v.normalized()
 
 func _pick_point(screen_pos: Vector2) -> Variant:
 	var camera := get_viewport().get_camera_3d()
@@ -661,12 +674,6 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 	var move := Vector3.ZERO
-	# Hold the left mouse button to keep walking toward the cursor.
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and windup_left < 0.0 and dash_left <= 0.0:
-		var held: Variant = _pick_point(get_viewport().get_mouse_position())
-		if held != null:
-			target = held
-			has_target = true
 	if dash_left > 0.0:
 		dash_left -= delta
 		move = dash_dir * dash_speed
@@ -676,13 +683,10 @@ func _physics_process(delta: float) -> void:
 		model.rotation.x = lerpf(model.rotation.x, -0.4, 0.4)
 		if windup_left < 0.0:
 			_slam()
-	elif has_target:
-		var dir := target - global_position
-		dir.y = 0.0
-		if dir.length() < 0.2:
-			has_target = false
-		else:
-			move = dir.normalized() * speed
+	else:
+		var dir := _move_input()
+		if dir != Vector3.ZERO:
+			move = dir * speed
 			look_at(global_position + dir, Vector3.UP)
 	if windup_left < 0.0 and dash_left <= 0.0:
 		_auto_attack()

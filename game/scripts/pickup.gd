@@ -7,6 +7,7 @@ var kind := "xp"
 var item := {}
 var value := 10
 var age := 0.0
+var full_msg_timer := 0.0
 
 const MAGNET_RANGE := 4.0
 const COLLECT_RANGE := 0.9
@@ -35,6 +36,15 @@ func _process(delta: float) -> void:
 	var to: Vector3 = player.global_position - global_position
 	to.y = 0.0
 	var dist := to.length()
+	# 背包已滿時，物品留在原地，不會追著玩家；騰出空位再撿。
+	var blocked: bool = kind == "item" and player.inventory.size() >= player.INVENTORY_LIMIT
+	if blocked:
+		full_msg_timer = maxf(full_msg_timer - delta, 0.0)
+		if dist < COLLECT_RANGE and full_msg_timer <= 0.0:
+			full_msg_timer = 2.0
+			player.flash_text = "背包已滿，請先在工作枱（C）拆解物品"
+			player.levelup_flash = 1.5
+		return
 	if dist < COLLECT_RANGE:
 		match kind:
 			"xp":
