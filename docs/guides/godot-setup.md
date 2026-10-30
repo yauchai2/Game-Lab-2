@@ -216,3 +216,9 @@
 - 介面：工作枱（C）上方「天賦」分頁。先看總覽、揀一條路線，鏡頭拉近看該路線細節。完整樹隨時可看，每條路線用 ★ 標出幾個值得探索的點（`HIGHLIGHTS`）。10 級前重置免費（`FREE_RESPEC_LEVEL`），之後 5 單據。
 - 效果在 `jax.gd`：`talent_total(kind)` 併入 `gear_total`（傷害、攻速、生命、護甲、抗性等），另有韌性上限 `poise_cap()`、翻滾 `roll_max()`／`roll_recharge_time()`、完美格擋時間、汽水回血、補給充能、重擊破防（`enemy.gd`）。
 - 存檔：`talents`、`talent_bonus` 存入 `progress.gd` 的存檔資料；舊存檔沒有這兩項也能讀。
+
+## 設定頁
+
+- 標題畫面按「設定」，或遊戲中按 Esc（會暫停，可回標題）。介面在 `game/scripts/settings_menu.gd`，資料與套用在 `game_settings.gd`，存檔位置 `user://settings.cfg`。
+- 項目：主音量／音樂／音效、全螢幕、3D 解析度（低 960、標準 1280、高 1920、原生）、魚眼強度、調色、陰影、垂直同步、鏡頭晃動、打擊頓幀、傷害數字、滾輪縮放速度、隱藏白色掉落名牌；另有「恢復預設」。
+- 要新增設定：在 `game_settings.gd` 的 `DEFAULTS` 加鍵，在 `settings_menu.gd` 的 `LEFT`／`RIGHT` 加一行，再在用到的地方讀 `GameSettings.v["鍵"]`。

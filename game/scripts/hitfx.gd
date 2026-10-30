@@ -1,6 +1,7 @@
 extends RefCounted
 ## 打擊感小工具：火花、頓幀、鏡頭震動。
 
+const GS := preload("res://game/scripts/game_settings.gd")
 static var stopping := false
 static var last_stop := 0
 
@@ -30,6 +31,8 @@ static func sparks(world: Node, pos: Vector3, color: Color, amount := 8, power :
 	p.get_tree().create_timer(0.8).timeout.connect(p.queue_free)
 
 static func hit_stop(tree: SceneTree, duration: float) -> void:
+	if GS.v["hit_stop"] == 0:
+		return
 	var now := Time.get_ticks_msec()
 	if stopping or now - last_stop < 300:
 		return
@@ -41,6 +44,9 @@ static func hit_stop(tree: SceneTree, duration: float) -> void:
 		stopping = false)
 
 static func shake(world: Node, amount: float) -> void:
+	amount *= GS.SHAKE_MULT[GS.v["shake"]]
+	if amount <= 0.0:
+		return
 	var cam := world.get_viewport().get_camera_3d()
 	if cam and cam.has_method("add_shake"):
 		cam.add_shake(amount)

@@ -16,6 +16,7 @@ const PITCH_MIN := 18.0
 const PITCH_MAX := 75.0
 
 var shake := 0.0
+const GS := preload("res://game/scripts/game_settings.gd")
 var zoom := 1.0
 var zoom_goal := 1.0
 var boss_blend := 0.0
@@ -42,9 +43,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			dragging = event.pressed
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			zoom_goal = clampf(zoom_goal * 0.9, zoom_min, zoom_max)
+			zoom_goal = clampf(zoom_goal * (1.0 - GS.ZOOM_STEP[GS.v["zoom_speed"]]), zoom_min, zoom_max)
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			zoom_goal = clampf(zoom_goal * 1.1, zoom_min, zoom_max)
+			zoom_goal = clampf(zoom_goal * (1.0 + GS.ZOOM_STEP[GS.v["zoom_speed"]]), zoom_min, zoom_max)
 	elif event is InputEventMouseMotion and dragging:
 		yaw_deg = wrapf(yaw_deg - event.relative.x * 0.25, 0.0, 360.0)
 		pitch_deg = clampf(pitch_deg + event.relative.y * 0.2, PITCH_MIN, PITCH_MAX)

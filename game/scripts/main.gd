@@ -51,17 +51,15 @@ func _add_boundary() -> void:
 		add_child(body)
 		body.global_position = w[0]
 
-## 3D 畫面固定渲染成約 1280 闊（低解像度），介面則用視窗原生解像度畫，所以字永遠清晰。
-const RENDER_WIDTH := 1280.0
+## 3D 畫面解析度由設定頁決定（預設約 1280 闊），介面則用視窗原生解析度畫，所以字永遠清晰。
+const GS := preload("res://game/scripts/game_settings.gd")
+const SETTINGS_MENU := preload("res://game/scripts/settings_menu.gd")
 
 func _fit_3d_resolution() -> void:
-	var root := get_tree().root
-	var window_w := float(root.get_window().size.x)
-	root.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-	root.scaling_3d_scale = clampf(RENDER_WIDTH / maxf(window_w, 1.0), 0.25, 1.0)
+	GS.fit_3d(get_tree())
 
 func _ready() -> void:
-	_fit_3d_resolution()
+	GS.apply(get_tree())
 	get_tree().root.size_changed.connect(_fit_3d_resolution)
 	_add_boundary()
 	jax.global_position = START_POS
@@ -79,6 +77,7 @@ func _ready() -> void:
 	add_child(fisheye)
 	add_child(music)
 	music.volume_db = MUSIC_DB
+	music.bus = "Music" if AudioServer.get_bus_index("Music") >= 0 else "Master"
 	_play_music("explore")
 
 # 背景音樂：探索一首，頭目醒來換另一首；按 M 開關。
@@ -144,6 +143,10 @@ func camps_cleared() -> int:
 	return n
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE and not get_tree().paused and not jax.dead:
+		SETTINGS_MENU.open(self, true)
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
 		music_on = not music_on
 		if music_on and not victory and not jax.dead:

@@ -4,9 +4,13 @@ extends Control
 const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
 
+const GS := preload("res://game/scripts/game_settings.gd")
+const SETTINGS_MENU := preload("res://game/scripts/settings_menu.gd")
+
 var stage := Control.new()
 
 func _ready() -> void:
+	GS.apply(get_tree())
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	# 640×360 的內容區置中；背景鋪滿整個視窗（低解像度畫面會隨視窗擴展）
 	stage.anchor_left = 0.5
@@ -44,6 +48,10 @@ func _ready() -> void:
 	var cont := _button("繼續", Vector2(270, y + 36))
 	cont.disabled = not PROGRESS.has_save()
 	cont.pressed.connect(_continue)
+	var set_btn := _button("設定", Vector2(270, y + 72))
+	set_btn.pressed.connect(func() -> void:
+		SFX.play(self, "ui_click")
+		SETTINGS_MENU.open(self, false))
 	_text("WASD 移動　Q／右鍵 技能　空白鍵 翻滾　C 工作枱", Vector2(0, 318), 9, Color("BCC5D4"))
 
 func _text(t: String, pos: Vector2, font_px: int, color: Color) -> void:

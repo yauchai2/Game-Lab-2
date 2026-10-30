@@ -11,6 +11,7 @@ const BUILDING_COLORS: Array[Color] = [
 ]
 const SKY := Color("52B7F0")
 
+const GS := preload("res://game/scripts/game_settings.gd")
 var rng := RandomNumberGenerator.new()
 
 ## 擋住鏡頭與玩家之間視線的建築與樹會變半透明。
@@ -150,7 +151,8 @@ func _setup_environment() -> void:
 		sun.rotation_degrees = Vector3(-30, -40, 0)
 		sun.light_color = Color("FFC27F")
 		sun.light_energy = 0.75
-		sun.shadow_enabled = true
+		sun.shadow_enabled = GS.v["shadows"] == 1
+		sun.add_to_group("sun")
 
 func _build_ground() -> void:
 	# Road with centre dashes, sidewalk strips and a crosswalk.

@@ -1,7 +1,11 @@
 extends RefCounted
 ## 浮動傷害數字：在 3D 世界裡向上飄並淡出。
 
+const GS := preload("res://game/scripts/game_settings.gd")
+
 static func spawn(world: Node, pos: Vector3, text: String, color := Color("F4F0E4"), big := false) -> void:
+	if GS.v["damage_numbers"] == 0:
+		return
 	var l := Label3D.new()
 	l.text = text
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED

@@ -7,7 +7,8 @@ const LABEL_H := 19.0
 const PAD := 9.0
 
 var labels := {}
-var hide_common := false
+const GS := preload("res://game/scripts/game_settings.gd")
+var hide_common: bool = GS.v["hide_common"] == 1
 
 func _ready() -> void:
 	layer = -1
@@ -46,6 +47,8 @@ func _name_of(p: Node) -> String:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Z:
 		hide_common = not hide_common
+		GS.v["hide_common"] = 1 if hide_common else 0
+		GS.save()
 
 # 點名牌撿取：滑鼠位置先按濾鏡校正，再比對名牌範圍。
 func _input(event: InputEvent) -> void:
