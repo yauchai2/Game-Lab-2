@@ -14,6 +14,13 @@ var slam_cooldown := 2.5
 var slam_pending := -1.0
 var slam_center := Vector3.ZERO
 var summoned := false
+## 破防：持續命中會累積，滿了就暈眩數秒，期間受到更多傷害。
+const BREAK_MAX := 160.0
+const STUN_TIME := 3.5
+const STUN_BONUS := 1.3
+var break_value := 0.0
+var break_decay_wait := 0.0
+var stun_left := 0.0
 
 func _ready() -> void:
 	max_hp = 520
@@ -22,6 +29,7 @@ func _ready() -> void:
 	attack_damage = 12
 	attack_cooldown = 1.4
 	base_color = Color("CC6657")
+	show_bar = false
 	super._ready()
 	add_to_group("boss")
 	aggro_range = 10.0
@@ -34,9 +42,18 @@ func _physics_process(delta: float) -> void:
 		return
 	cooldown = maxf(cooldown - delta, 0.0)
 	knockback = knockback.move_toward(Vector3.ZERO, 30.0 * delta)
+	break_decay_wait -= delta
+	if break_decay_wait <= 0.0 and stun_left <= 0.0:
+		break_value = maxf(break_value - 12.0 * delta, 0.0)
 	var move := Vector3.ZERO
 	var player := get_tree().get_first_node_in_group("player")
-	if player and not player.dead:
+	if stun_left > 0.0:
+		stun_left -= delta
+		slam_pending = -1.0
+		_material.albedo_color = Color("9FB6E8") if int(stun_left * 8.0) % 2 == 0 else base_color
+		if stun_left <= 0.0:
+			_material.albedo_color = base_color
+	elif player and not player.dead:
 		var to: Vector3 = player.global_position - global_position
 		to.y = 0.0
 		var dist := to.length()
@@ -63,6 +80,21 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	move_and_slide()
+
+func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) -> void:
+	if hp <= 0:
+		return
+	if stun_left > 0.0:
+		amount = int(amount * STUN_BONUS)
+	elif awake:
+		break_value += amount
+		break_decay_wait = 2.0
+		if break_value >= BREAK_MAX:
+			break_value = 0.0
+			stun_left = STUN_TIME
+			SFX.play(self, "boss_warn", -2.0)
+			FLOATY.spawn(get_parent(), global_position + Vector3(0, 3.2, 0), "破防", Color("9FB6E8"), true)
+	super.take_damage(amount, from_pos, knock)
 
 func _slam_start(player: Node3D) -> void:
 	slam_cooldown = 3.5 if hp > max_hp * 0.5 else 2.5

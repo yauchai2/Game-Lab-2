@@ -52,6 +52,7 @@ var attack_swing := 0.0
 
 const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
+const FLOATY := preload("res://game/scripts/floaty.gd")
 const SKYE_MODEL := preload("res://assets/characters/skye.glb")
 
 var char_id := "jax"
@@ -418,6 +419,7 @@ func take_damage(amount: int) -> void:
 	if dead or iframe_left > 0.0:
 		return
 	hp = maxi(hp - amount, 0)
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.0, 0), str(amount), Color("CC6657"), true)
 	SFX.play(self, "death" if hp == 0 else "hurt", -3.0)
 	if hp == 0:
 		dead = true

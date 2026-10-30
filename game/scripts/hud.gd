@@ -3,8 +3,10 @@ extends CanvasLayer
 const SFX := preload("res://game/scripts/sfx.gd")
 const BAR_SIZE := Vector2(140, 8)
 
-var hp_back := ColorRect.new()
-var hp_fill := ColorRect.new()
+var orb := Control.new()
+var break_back := ColorRect.new()
+var break_fill := ColorRect.new()
+var break_label := Label.new()
 var xp_back := ColorRect.new()
 var xp_fill := ColorRect.new()
 var info := Label.new()
@@ -39,17 +41,27 @@ func _ready() -> void:
 	boss_back.add_child(boss_fill)
 	boss_fill.position = Vector2(1, 1)
 	boss_label.add_theme_font_size_override("font_size", 10)
-	boss_label.position = Vector2(430, 18)
+	boss_label.position = Vector2(430, 30)
 	boss_label.visible = false
 	add_child(boss_label)
-	hp_back.color = Color("292D3B")
-	hp_back.position = Vector2(8, 8)
-	hp_back.size = BAR_SIZE + Vector2(2, 2)
-	add_child(hp_back)
-	hp_fill.color = Color("CC6657")
-	hp_fill.position = Vector2(9, 9)
-	hp_fill.size = BAR_SIZE
-	add_child(hp_fill)
+	orb.set_script(load("res://game/scripts/orb.gd"))
+	orb.position = Vector2(8, 300)
+	orb.size = Vector2(56, 56)
+	orb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(orb)
+	break_back.color = Color("292D3B")
+	break_back.position = Vector2(430, 22)
+	break_back.size = Vector2(202, 5)
+	break_back.visible = false
+	add_child(break_back)
+	break_fill.color = Color("9FB6E8")
+	break_fill.position = Vector2(1, 1)
+	break_fill.size = Vector2(0, 3)
+	break_back.add_child(break_fill)
+	break_label.add_theme_font_size_override("font_size", 8)
+	break_label.position = Vector2(560, 30)
+	break_label.visible = false
+	add_child(break_label)
 	xp_back.color = Color("292D3B")
 	xp_back.position = Vector2(8, 20)
 	xp_back.size = Vector2(BAR_SIZE.x + 2, 5)
@@ -95,7 +107,9 @@ func _ready() -> void:
 	add_child(banner)
 
 func _process(_delta: float) -> void:
-	hp_fill.size.x = BAR_SIZE.x * float(jax.hp) / float(jax.max_hp)
+	orb.ratio = float(jax.hp) / float(jax.max_hp)
+	orb.label_text = "%d" % jax.hp
+	orb.queue_redraw()
 	xp_fill.size.x = BAR_SIZE.x * float(jax.xp) / float(jax.xp_to_next())
 	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts]
 	_update_skill_bar()
@@ -106,6 +120,11 @@ func _process(_delta: float) -> void:
 	if boss_alive:
 		boss_fill.size.x = 200.0 * float(b.hp) / float(b.max_hp)
 		boss_label.text = "頭目：" + b.boss_name
+		break_fill.size.x = 200.0 * clampf(b.break_value / b.BREAK_MAX, 0.0, 1.0)
+		break_label.text = "破防！" if b.stun_left > 0.0 else "破防"
+		break_fill.color = Color("E6D26A") if b.stun_left > 0.0 else Color("9FB6E8")
+	break_back.visible = boss_alive
+	break_label.visible = boss_alive
 	if get_parent().victory:
 		banner.text = ""
 	elif jax.dead:

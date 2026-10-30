@@ -9,6 +9,7 @@ var value := 10
 var age := 0.0
 var full_msg_timer := 0.0
 var blocked_now := false
+var pulled := false
 
 const MAGNET_RANGE := 4.0
 const COLLECT_RANGE := 0.9
@@ -77,5 +78,5 @@ func _process(delta: float) -> void:
 					return
 				SFX.play(self, "pickup_item")
 		queue_free()
-	elif dist < MAGNET_RANGE and age > 0.4:
-		global_position += to.normalized() * 9.0 * delta
+	elif (dist < MAGNET_RANGE and age > 0.4) or pulled:
+		global_position += to.normalized() * (14.0 if pulled else 9.0) * delta

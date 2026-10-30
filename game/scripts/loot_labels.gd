@@ -6,6 +6,7 @@ const LABEL_H := 13.0
 const PAD := 6.0
 
 var labels := {}
+var hide_common := false
 
 func _ready() -> void:
 	layer = 0
@@ -21,12 +22,16 @@ func _label_for(p: Node) -> Panel:
 	box.border_color = col.darkened(0.35)
 	box.set_border_width_all(1)
 	panel.add_theme_stylebox_override("panel", box)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and is_instance_valid(p):
+			p.pulled = true)
 	var l := Label.new()
 	l.name = "Text"
 	l.text = _name_of(p)
 	l.add_theme_font_size_override("font_size", 9)
 	l.add_theme_color_override("font_color", col)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.position = Vector2(PAD, -1)
 	panel.add_child(l)
 	var w := l.get_minimum_size().x + PAD * 2.0
@@ -39,10 +44,17 @@ func _name_of(p: Node) -> String:
 	var player := get_tree().get_first_node_in_group("player")
 	return player.ITEM_TYPES[p.item["type"]]["name"] if player else "物品"
 
+# Z：只顯示藍色以上的名牌；按住 Alt：暫時顯示全部。
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Z:
+		hide_common = not hide_common
+
 func _process(_delta: float) -> void:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
+	visible = not get_tree().paused
+	var show_all := Input.is_key_pressed(KEY_ALT)
 	var rects: Array = []
 	for p in get_tree().get_nodes_in_group("item_pickups"):
 		if not is_instance_valid(p):
@@ -52,6 +64,10 @@ func _process(_delta: float) -> void:
 			continue
 		var sp := cam.unproject_position(pos)
 		var panel := _label_for(p)
+		var hidden: bool = hide_common and not show_all and p.item["rarity"] == 0
+		panel.visible = not hidden
+		if hidden:
+			continue
 		panel.position = sp - Vector2(panel.size.x * 0.5, LABEL_H)
 		rects.append([panel, p])
 	# 由上而下排開，重疊就往下推

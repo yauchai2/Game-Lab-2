@@ -20,6 +20,11 @@ var _material := StandardMaterial3D.new()
 const SFX := preload("res://game/scripts/sfx.gd")
 const PICKUP := preload("res://game/scripts/pickup.gd")
 const PROJECTILE := preload("res://game/scripts/projectile.gd")
+const FLOATY := preload("res://game/scripts/floaty.gd")
+
+var show_bar := true
+var bar_back := MeshInstance3D.new()
+var bar_fill := MeshInstance3D.new()
 
 @onready var mesh: MeshInstance3D = $Mesh
 
@@ -30,11 +35,46 @@ func _ready() -> void:
 		add_to_group(camp)
 	_material.albedo_color = base_color
 	mesh.material_override = _material
+	if show_bar:
+		_make_bar()
+
+func _bar_mesh(m: MeshInstance3D, color: Color, width: float) -> void:
+	var q := QuadMesh.new()
+	q.size = Vector2(width, 0.09)
+	m.mesh = q
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.no_depth_test = true
+	m.material_override = mat
+
+# 敵人血條：受傷後才顯示。
+func _make_bar() -> void:
+	_bar_mesh(bar_back, Color("14161D"), 0.84)
+	_bar_mesh(bar_fill, Color("CC6657"), 0.8)
+	bar_back.position = Vector3(0, 2.0, 0)
+	bar_fill.position = Vector3(0, 2.0, 0.01)
+	bar_back.visible = false
+	bar_fill.visible = false
+	add_child(bar_back)
+	add_child(bar_fill)
+
+func _update_bar() -> void:
+	var visible_bar := show_bar and hp > 0 and hp < max_hp
+	bar_back.visible = visible_bar
+	bar_fill.visible = visible_bar
+	if visible_bar:
+		var f := clampf(float(hp) / float(max_hp), 0.0, 1.0)
+		bar_fill.scale.x = maxf(f, 0.001)
+		bar_fill.position.x = -0.4 * (1.0 - f)
 
 func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) -> void:
 	if hp <= 0:
 		return
 	hp -= amount
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 1.9, 0), str(amount))
+	_update_bar()
 	wake()
 	var away := global_position - from_pos
 	away.y = 0.0
@@ -48,6 +88,8 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) ->
 		if camp != "":
 			remove_from_group(camp)
 		collision_layer = 0
+		bar_back.visible = false
+		bar_fill.visible = false
 		_drop_loot()
 		SFX.play(self, "enemy_die", -4.0)
 		var die := create_tween()
