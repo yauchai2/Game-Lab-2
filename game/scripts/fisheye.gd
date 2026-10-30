@@ -1,5 +1,5 @@
 extends CanvasLayer
-## 全畫面魚眼鏡效果：桶形變形加邊緣微暗。按 V 開關。
+## 全畫面魚眼鏡效果：只有桶形變形（沒有暗角、色差等其他效果）。按 V 開關。
 ## 世界與名牌會被扭曲，介面（HUD）不會。滑鼠瞄準用 warp_pos() 校正。
 
 const K := 0.35
@@ -26,9 +26,6 @@ vec2 warp(vec2 uv) {
 void fragment() {
 	vec2 uv = SCREEN_UV;
 	vec3 col = texture(screen_tex, clamp(warp(uv), 0.0, 1.0)).rgb;
-	// 鏡頭邊緣略暗
-	vec2 dv = uv - 0.5;
-	col *= 1.0 - smoothstep(0.3, 0.8, dot(dv, dv) * 1.5) * 0.45;
 	COLOR = vec4(col, 1.0);
 }
 """
