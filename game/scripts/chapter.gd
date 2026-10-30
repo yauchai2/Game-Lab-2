@@ -391,8 +391,10 @@ func _process(delta: float) -> void:
 		objective.text = "目標：前往北面，擊敗頭目「收據」"
 	prompt.text = "［E］交談" if not _near_npc().is_empty() and not jax.dead else ""
 	hint.text = _current_hint() if show_hints and stage == "clear" and not jax.dead else ""
-	if main.get_node("HUD").bench.visible:
+	var bench_open: bool = main.get_node("HUD").bench.visible
+	if bench_open:
 		bench_opened = true
+	overlay.visible = not bench_open or busy
 
 func _say_caption(t: String) -> void:
 	caption.text = t

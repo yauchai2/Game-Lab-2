@@ -8,6 +8,7 @@ var item := {}
 var value := 10
 var age := 0.0
 var full_msg_timer := 0.0
+var blocked_now := false
 
 const MAGNET_RANGE := 4.0
 const COLLECT_RANGE := 0.9
@@ -20,8 +21,22 @@ func _ready() -> void:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = {"xp": Color("75C7B0"), "hp": Color("CC6657"), "receipt": Color("E7DFC9")}.get(kind, Color("F4F0E4"))
 	if kind == "item":
-		m.albedo_color = [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")][item["rarity"]]
-		bm.size = Vector3(0.55, 0.55, 0.55)
+		# 物品：地上一根光柱加小菱形，名稱由 loot_labels.gd 顯示成名牌。
+		var col: Color = [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")][item["rarity"]]
+		m.albedo_color = col
+		bm.size = Vector3(0.3, 0.3, 0.3)
+		var beam := MeshInstance3D.new()
+		var bb := BoxMesh.new()
+		bb.size = Vector3(0.07, 3.0, 0.07)
+		beam.mesh = bb
+		var bm2 := StandardMaterial3D.new()
+		bm2.albedo_color = Color(col.r, col.g, col.b, 0.55)
+		bm2.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		bm2.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		beam.material_override = bm2
+		beam.position.y = 1.5
+		add_child(beam)
+		add_to_group("item_pickups")
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mi.material_override = m
 	add_child(mi)
@@ -38,6 +53,7 @@ func _process(delta: float) -> void:
 	var dist := to.length()
 	# 背包已滿時，物品留在原地，不會追著玩家；騰出空位再撿。
 	var blocked: bool = kind == "item" and player.inventory.size() >= player.INVENTORY_LIMIT
+	blocked_now = blocked
 	if blocked:
 		full_msg_timer = maxf(full_msg_timer - delta, 0.0)
 		if dist < COLLECT_RANGE and full_msg_timer <= 0.0:

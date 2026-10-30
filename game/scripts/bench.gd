@@ -1,26 +1,27 @@
 extends Control
-## 工作枱：左邊是技能卡匣與裝備欄，右邊是背包格子，下方是物品詳情與操作。
-## 單擊選取、雙擊直接裝上／拆下；滑鼠移上去即時預覽。
+## 裝備頁（參考 PoE 2）：左邊是物品提示框與屬性，右邊上方是人形裝備欄與技能卡匣槽，下方是背包格子。
+## 滑鼠移上去即時顯示提示；單擊選取、雙擊裝上／拆下。
 
 const SFX := preload("res://game/scripts/sfx.gd")
-const RARITY_COLORS := [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")]
-const BG := Color("20232E")
-const PANEL := Color("292D3B")
-const CELL := Color("3A4054")
-const CELL_ON := Color("4A6A66")
-const CELL_HOVER := Color("565E7C")
-const GEAR_ORDER := ["weapon", "head", "body", "feet", "trinket"]
+const RARITY_COLORS := [Color("F4F0E4"), Color("8FA8E8"), Color("E6D26A")]
+const BG := Color("14120F")
+const GOLD := Color("7A6A3E")
+const CELL := Color("221F1A")
+const CELL_ON := Color("2F3F3B")
+const CELL_HOVER := Color("3D372D")
+const AFFIX_BLUE := "#8F8FFF"
 const GEAR_NAMES := {"weapon": "武器", "head": "頭部", "body": "身體", "feet": "腳部", "trinket": "飾物"}
 const SLOT_HINTS := {
-	"weapon": "武器欄：決定普通攻擊的方式（近戰或遠程）。",
-	"head": "頭部欄：提供生命、攻速等屬性。",
-	"body": "身體欄：提供生命或技能傷害。",
-	"feet": "腳部欄：提供移速或技能冷卻。",
-	"trinket": "飾物欄：提供技能傷害、冷卻或普攻傷害。",
-	"demolish": "技能卡匣槽：裝上配件，改變這個技能的效果。",
-	"skate": "衝刺卡匣槽：裝上配件，改變衝刺的效果。",
+	"weapon": "武器欄\n決定普通攻擊的方式（近戰或遠程）。",
+	"head": "頭部欄\n提供生命、攻速等屬性。",
+	"body": "身體欄\n提供生命或技能傷害。",
+	"feet": "腳部欄\n提供移速或技能冷卻。",
+	"trinket": "飾物欄\n提供技能傷害、冷卻或普攻傷害。",
+	"demolish": "技能卡匣槽\n裝上配件，改變這個技能的效果。",
+	"skate": "衝刺卡匣槽\n裝上配件，改變衝刺的效果。",
 }
 const TAGS := {"demolish": "技", "skate": "衝", "weapon": "武", "head": "頭", "body": "身", "feet": "腳", "trinket": "飾"}
+const DOLL_ORIGIN := Vector2(244, 30)
 
 var jax: Node
 var selected_uid := -1
@@ -28,7 +29,10 @@ var hover_uid := -1
 var hover_slot := ""
 var message := ""
 var body := Control.new()
-var detail := RichTextLabel.new()
+var tip_head_bg := ColorRect.new()
+var tip_head := Label.new()
+var tip_body := RichTextLabel.new()
+var stats := RichTextLabel.new()
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -36,27 +40,50 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	visible = false
 	var dim := ColorRect.new()
-	dim.color = Color(0.05, 0.06, 0.09, 0.8)
+	dim.color = Color(0.02, 0.02, 0.03, 0.85)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
-	var panel := ColorRect.new()
-	panel.color = BG
-	panel.position = Vector2(16, 12)
-	panel.size = Vector2(608, 336)
+	var panel := Panel.new()
+	panel.add_theme_stylebox_override("panel", _style(BG, GOLD, 2))
+	panel.position = Vector2(8, 8)
+	panel.size = Vector2(624, 344)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(panel)
+	# 左邊提示框
+	var tip := Panel.new()
+	tip.add_theme_stylebox_override("panel", _style(Color("0B0A08"), GOLD, 1))
+	tip.position = Vector2(16, 30)
+	tip.size = Vector2(216, 214)
+	tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(tip)
+	tip_head_bg.position = Vector2(17, 31)
+	tip_head_bg.size = Vector2(214, 28)
+	add_child(tip_head_bg)
+	tip_head.position = Vector2(17, 31)
+	tip_head.size = Vector2(214, 28)
+	tip_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tip_head.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tip_head.add_theme_font_size_override("font_size", 12)
+	add_child(tip_head)
+	tip_body.bbcode_enabled = true
+	tip_body.position = Vector2(22, 64)
+	tip_body.size = Vector2(204, 176)
+	tip_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tip_body.add_theme_font_size_override("normal_font_size", 10)
+	add_child(tip_body)
+	var stat_panel := Panel.new()
+	stat_panel.add_theme_stylebox_override("panel", _style(Color("0B0A08"), Color("3A3426"), 1))
+	stat_panel.position = Vector2(16, 252)
+	stat_panel.size = Vector2(216, 92)
+	stat_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(stat_panel)
+	stats.bbcode_enabled = true
+	stats.position = Vector2(22, 256)
+	stats.size = Vector2(206, 86)
+	stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stats.add_theme_font_size_override("normal_font_size", 9)
+	add_child(stats)
 	add_child(body)
-	var detail_bg := ColorRect.new()
-	detail_bg.color = PANEL
-	detail_bg.position = Vector2(316, 190)
-	detail_bg.size = Vector2(290, 106)
-	add_child(detail_bg)
-	detail.bbcode_enabled = true
-	detail.position = Vector2(322, 193)
-	detail.size = Vector2(280, 100)
-	detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	detail.add_theme_font_size_override("normal_font_size", 10)
-	detail.add_theme_font_size_override("bold_font_size", 12)
-	add_child(detail)
 
 func open() -> void:
 	message = ""
@@ -70,12 +97,13 @@ func close() -> void:
 
 # ---------- 小工具 ----------
 
-func _label(text: String, pos: Vector2, font_px := 10, color := Color("E7DFC9")) -> Label:
+func _label(text: String, pos: Vector2, font_px := 10, color := Color("C9BC9A")) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.position = pos
 	l.add_theme_font_size_override("font_size", font_px)
 	l.add_theme_color_override("font_color", color)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body.add_child(l)
 	return l
 
@@ -96,7 +124,7 @@ func _cell(pos: Vector2, cell_size: Vector2, text: String, border: Color, fill: 
 	b.size = cell_size
 	b.text = text
 	b.clip_text = true
-	b.add_theme_font_size_override("font_size", 10)
+	b.add_theme_font_size_override("font_size", 9)
 	b.add_theme_stylebox_override("normal", _style(fill, border, width))
 	b.add_theme_stylebox_override("hover", _style(CELL_HOVER, border, width))
 	b.add_theme_stylebox_override("pressed", _style(CELL_HOVER, border, width))
@@ -120,56 +148,58 @@ func refresh() -> void:
 	for c in body.get_children():
 		c.queue_free()
 	_header()
-	_left_column()
+	_doll()
+	_cartridges()
 	_inventory_grid()
-	_detail_panel()
 	_buttons()
+	update_detail()
 
 func _header() -> void:
-	_label("工作枱", Vector2(28, 16), 14)
-	_label("單據 %d" % jax.receipts, Vector2(120, 18), 12, Color("D6D573"))
-	_label("單擊選取　雙擊裝上／拆下　［C］或［Esc］關閉", Vector2(330, 19), 9, Color("9AA3AD"))
+	var t := _label("裝備", Vector2(244, 10), 13, Color("E6D9B5"))
+	t.add_theme_constant_override("outline_size", 0)
+	_label("單據 %d" % jax.receipts, Vector2(330, 12), 11, Color("E6D26A"))
+	_label("雙擊裝上／拆下　［C］或［Esc］關閉", Vector2(412, 13), 8, Color("8C8470"))
 
-func _left_column() -> void:
-	_label("技能卡匣", Vector2(28, 40), 10, Color("75C7B0"))
-	var rows := [
-		["demolish", "%s［Q／右鍵］" % jax.skill_name, jax.skill_desc],
-		["skate", "滑板衝刺［空白鍵］", "朝移動方向衝刺，期間無敵"],
-	]
-	var y := 54
-	for r in rows:
-		_label("%s　%s" % [r[1], r[2]], Vector2(28, y), 9, Color("BCC5D4"))
-		for i in 2:
-			_slot_cell(r[0], i, Vector2(28 + i * 138, y + 14), Vector2(134, 30))
-		y += 52
-	_label("裝備（任何角色都能穿）", Vector2(28, 160), 10, Color("75C7B0"))
-	for i in GEAR_ORDER.size():
-		_slot_cell(GEAR_ORDER[i], 0, Vector2(28 + i * 55, 176), Vector2(52, 38))
-	_label("屬性", Vector2(28, 222), 10, Color("75C7B0"))
+func _doll() -> void:
+	# 人形欄位：武器在左、頭／身／腳在中、飾物在右
+	var o := DOLL_ORIGIN
+	var sil := ColorRect.new()
+	sil.color = Color("1B1813")
+	sil.position = o + Vector2(0, 0)
+	sil.size = Vector2(376, 170)
+	sil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(sil)
+	_slot_cell("weapon", 0, o + Vector2(24, 12), Vector2(48, 96))
+	_slot_cell("head", 0, o + Vector2(164, 6), Vector2(48, 44))
+	_slot_cell("body", 0, o + Vector2(164, 54), Vector2(48, 64))
+	_slot_cell("feet", 0, o + Vector2(164, 122), Vector2(48, 44))
+	_slot_cell("trinket", 0, o + Vector2(304, 12), Vector2(48, 44))
 	var w: Dictionary = jax.weapon_stats()
-	var lines := [
-		"生命 %d／%d　移速 %.1f" % [jax.hp, jax.max_hp, jax.speed],
-		"普通攻擊：%s　傷害 %d　%.2f 秒　射程 %.1f 米" % ["近戰" if w["kind"] == "melee" else "遠程", roundi(w["dmg"]), w["cd"], w["reach"]],
-		"技能傷害 +%d%%　技能冷卻 -%d%%" % [roundi(jax.affix_total("dmg", "demolish")), roundi(jax.affix_total("cd", "demolish"))],
-	]
-	for i in lines.size():
-		_label(lines[i], Vector2(28, 236 + i * 14), 9)
+	_label("普通攻擊：%s" % ("近戰" if w["kind"] == "melee" else "遠程"), o + Vector2(10, 114), 8, Color("8C8470"))
+
+func _cartridges() -> void:
+	var y := 204
+	var groups := [["demolish", "%s\n［Q］" % jax.skill_name, 244], ["skate", "衝刺\n［空白］", 436]]
+	for g in groups:
+		_label(g[1], Vector2(g[2], y), 9, Color("75C7B0"))
+		for i in 2:
+			_slot_cell(g[0], i, Vector2(g[2] + 48 + i * 66, y), Vector2(64, 30))
 
 func _slot_cell(cart: String, idx: int, pos: Vector2, cell_size: Vector2) -> void:
 	var item: Variant = jax.slots[cart][idx]
+	var border := Color("4A4332")
+	var name_color := Color("5E5848")
 	var title: String
-	var border := Color("5A6280")
-	var name_color := Color("9AA3AD")
 	if cart in GEAR_NAMES:
-		title = "%s\n%s" % [GEAR_NAMES[cart], _short_name(item) if item != null else "（空）"]
+		title = "%s\n%s" % [TAGS[cart], _short_name(item) if item != null else GEAR_NAMES[cart]]
 	else:
-		title = "槽 %s　%s" % ["AB"[idx], _short_name(item) if item != null else "（空）"]
+		title = _short_name(item) if item != null else "槽 %s" % "AB"[idx]
 	var uid: int = item["uid"] if item != null else -1
 	if item != null:
 		border = RARITY_COLORS[item["rarity"]]
 		name_color = border
 	var selected := item != null and uid == selected_uid
-	var b := _cell(pos, cell_size, title, Color.WHITE if selected else border, CELL_ON if item != null else CELL, 3 if selected else 2)
+	var b := _cell(pos, cell_size, title, Color.WHITE if selected else border, CELL_ON if item != null else CELL, 3 if selected else 1)
 	b.add_theme_color_override("font_color", name_color)
 	b.add_theme_color_override("font_hover_color", name_color)
 	b.pressed.connect(_on_slot_pressed.bind(uid))
@@ -178,68 +208,24 @@ func _slot_cell(cart: String, idx: int, pos: Vector2, cell_size: Vector2) -> voi
 	b.gui_input.connect(_on_cell_input.bind(uid))
 
 func _inventory_grid() -> void:
-	_label("背包 %d／%d" % [jax.inventory.size(), jax.INVENTORY_LIMIT], Vector2(316, 40), 10, Color("75C7B0"))
+	_label("背包 %d／%d" % [jax.inventory.size(), jax.INVENTORY_LIMIT], Vector2(244, 240), 9, Color("C9BC9A"))
 	for n in jax.INVENTORY_LIMIT:
-		var pos := Vector2(316 + (n % 4) * 74, 54 + (n / 4) * 44)
+		var pos := Vector2(244 + (n % 6) * 63, 254 + (n / 6) * 38)
 		if n >= jax.inventory.size():
-			_cell(pos, Vector2(68, 40), "", Color("3A4054"), Color("262A38"), 1).disabled = true
+			_cell(pos, Vector2(60, 35), "", Color("2A261E"), Color("0F0E0B"), 1).disabled = true
 			continue
 		var it: Dictionary = jax.inventory[n]
 		var equipped: bool = not jax.slot_info(it["uid"]).is_empty()
 		var col: Color = RARITY_COLORS[it["rarity"]]
 		var selected: bool = it["uid"] == selected_uid
 		var text := "%s%s\n%s" % [TAGS[_item_cart(it)], "　已裝" if equipped else "", _short_name(it)]
-		var b := _cell(pos, Vector2(68, 40), text, Color.WHITE if selected else col, CELL_ON if equipped else CELL, 3 if selected else 2)
+		var b := _cell(pos, Vector2(60, 35), text, Color.WHITE if selected else col, CELL_ON if equipped else CELL, 3 if selected else 1)
 		b.add_theme_color_override("font_color", col)
 		b.add_theme_color_override("font_hover_color", col)
 		b.pressed.connect(_on_select.bind(it["uid"]))
 		b.mouse_entered.connect(_on_hover.bind(it["uid"], ""))
 		b.mouse_exited.connect(_on_hover.bind(-1, ""))
 		b.gui_input.connect(_on_cell_input.bind(it["uid"]))
-
-func _describe(item: Dictionary) -> String:
-	var def: Dictionary = jax.ITEM_TYPES[item["type"]]
-	var cart: String = def["cart"]
-	var col := _hex(RARITY_COLORS[item["rarity"]])
-	var t := "[color=%s][b]%s[/b][/color]\n" % [col, jax.item_name(item)]
-	if cart in GEAR_NAMES:
-		t += "裝備・%s" % GEAR_NAMES[cart]
-		if cart == "weapon":
-			t += "　" + ("自動揮擊身邊敵人" if def["kind"] == "melee" else ("自動射擊最近的 3 個敵人" if def.get("pellets", 1) > 1 else "自動射擊最近的敵人"))
-	else:
-		var cname: String = jax.skill_name if cart == "demolish" else "滑板衝刺"
-		t += "卡匣配件・%s　%s" % [cname, def["desc"]]
-	t += "\n"
-	for part in jax.item_affix_text(item).split(", "):
-		if part != "":
-			t += "• %s\n" % part
-	var info: Dictionary = jax.slot_info(item["uid"])
-	if info.is_empty():
-		var current: Variant = null
-		if cart in GEAR_NAMES:
-			current = jax.slots[cart][0]
-		if current != null:
-			t += "[color=#9AA3AD]裝上後會替換：%s[/color]" % jax.item_name(current)
-		elif cart not in GEAR_NAMES and jax.slots[cart].find(null) < 0:
-			t += "[color=#CC6657]兩個槽已滿，請先拆下一個[/color]"
-	else:
-		t += "[color=#75C7B0]已裝備中[/color]"
-	return t
-
-func _detail_panel() -> void:
-	update_detail()
-	var m := _label(message, Vector2(316, 300), 9, Color("CC6657"))
-	m.size = Vector2(290, 14)
-
-func update_detail() -> void:
-	var uid := hover_uid if hover_uid >= 0 else selected_uid
-	var item: Variant = jax.find_item(uid) if uid >= 0 else null
-	if item != null:
-		detail.text = _describe(item)
-	elif hover_slot != "":
-		detail.text = SLOT_HINTS[hover_slot]
-	else:
-		detail.text = "[color=#9AA3AD]點選背包或欄位中的物品查看詳情。\n\n配件改變技能效果，裝備提供屬性，\n武器決定普通攻擊。\n拆解物品可得單據，用來升級或重擲。[/color]"
 
 func _buttons() -> void:
 	var sel: Variant = jax.find_item(selected_uid)
@@ -252,15 +238,79 @@ func _buttons() -> void:
 		["拆解 +1", "scrap_item", sel != null],
 	]
 	for i in specs.size():
-		var b := _cell(Vector2(316 + i * 74, 318), Vector2(68, 24), specs[i][0], Color("75C7B0"), CELL, 1)
+		var b := _cell(Vector2(244 + i * 94, 332), Vector2(90, 16), specs[i][0], GOLD, CELL, 1)
 		b.disabled = not specs[i][2]
 		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b.add_theme_color_override("font_disabled_color", Color("6B7288"))
+		b.add_theme_color_override("font_color", Color("E6D9B5"))
+		b.add_theme_color_override("font_disabled_color", Color("5E5848"))
 		b.pressed.connect(act.bind(specs[i][1]))
-	if sel == null:
-		_label("先選一件物品", Vector2(28, 318), 9, Color("9AA3AD"))
-	elif rarity == 0:
-		_label("普通物品沒有詞綴，可先升級再重擲", Vector2(28, 318), 9, Color("9AA3AD"))
+
+# ---------- 提示框與屬性 ----------
+
+func _describe(item: Dictionary) -> String:
+	var def: Dictionary = jax.ITEM_TYPES[item["type"]]
+	var cart: String = def["cart"]
+	var t := "[center]"
+	if cart in GEAR_NAMES:
+		t += "[color=#9A927C]%s[/color]\n" % GEAR_NAMES[cart]
+		if cart == "weapon":
+			var w: Dictionary = jax.weapon_stats_of(item)
+			t += "%s\n" % ("近戰・自動揮擊身邊敵人" if def["kind"] == "melee" else ("遠程・自動射擊最近的 3 個敵人" if def.get("pellets", 1) > 1 else "遠程・自動射擊最近的敵人"))
+			t += "傷害 %d　間隔 %.2f 秒　射程 %.1f 米\n" % [roundi(w["dmg"]), w["cd"], w["reach"]]
+	else:
+		var cname: String = jax.skill_name if cart == "demolish" else "滑板衝刺"
+		t += "[color=#9A927C]卡匣配件・%s[/color]\n%s\n" % [cname, def["desc"]]
+	t += "[color=#5E5848]────────[/color]\n"
+	var any := false
+	for part in jax.item_affix_text(item).split(", "):
+		if part != "":
+			t += "[color=%s]%s[/color]\n" % [AFFIX_BLUE, part]
+			any = true
+	if not any:
+		t += "[color=#5E5848]沒有詞綴[/color]\n"
+	t += "[color=#5E5848]────────[/color]\n"
+	var info: Dictionary = jax.slot_info(item["uid"])
+	if info.is_empty():
+		var current: Variant = null
+		if cart in GEAR_NAMES:
+			current = jax.slots[cart][0]
+		if current != null:
+			t += "[color=#9A927C]裝上後會替換：%s[/color]" % jax.item_name(current)
+		elif cart not in GEAR_NAMES and jax.slots[cart].find(null) < 0:
+			t += "[color=#CC6657]兩個槽已滿，請先拆下一個[/color]"
+		else:
+			t += "[color=#9A927C]雙擊裝上[/color]"
+	else:
+		t += "[color=#75C7B0]已裝備中[/color]"
+	return t + "[/center]"
+
+func update_detail() -> void:
+	var uid := hover_uid if hover_uid >= 0 else selected_uid
+	var item: Variant = jax.find_item(uid) if uid >= 0 else null
+	if item != null:
+		var col: Color = RARITY_COLORS[item["rarity"]]
+		tip_head_bg.color = col.darkened(0.75)
+		tip_head.text = _short_name(item)
+		tip_head.add_theme_color_override("font_color", col)
+		tip_body.text = _describe(item)
+	else:
+		tip_head_bg.color = Color("1B1813")
+		tip_head.text = "物品"
+		tip_head.add_theme_color_override("font_color", Color("8C8470"))
+		if hover_slot != "":
+			tip_body.text = "[center]%s[/center]" % SLOT_HINTS[hover_slot]
+		else:
+			tip_body.text = "[center][color=#8C8470]點選背包或欄位中的物品查看。\n\n配件改變技能效果，\n裝備提供屬性，\n武器決定普通攻擊。\n\n拆解物品可得單據，\n用來升級或重擲。[/color][/center]"
+	var w: Dictionary = jax.weapon_stats()
+	var s := "[color=#75C7B0]屬性[/color]\n"
+	s += "生命 %d／%d　移速 %.1f\n" % [jax.hp, jax.max_hp, jax.speed]
+	s += "普攻 %s　傷害 %d　%.2f 秒　射程 %.1f\n" % ["近戰" if w["kind"] == "melee" else "遠程", roundi(w["dmg"]), w["cd"], w["reach"]]
+	s += "技能傷害 +%d%%　技能冷卻 -%d%%" % [roundi(jax.affix_total("dmg", "demolish")), roundi(jax.affix_total("cd", "demolish"))]
+	if message != "":
+		s += "\n[color=#CC6657]%s[/color]" % message
+	elif selected_uid < 0:
+		s += "\n[color=#8C8470]先選一件物品[/color]"
+	stats.text = s
 
 # ---------- 互動 ----------
 

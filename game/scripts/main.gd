@@ -60,6 +60,9 @@ func _ready() -> void:
 	chapter = CanvasLayer.new()
 	chapter.set_script(preload("res://game/scripts/chapter.gd"))
 	add_child(chapter)
+	var loot_labels := CanvasLayer.new()
+	loot_labels.set_script(preload("res://game/scripts/loot_labels.gd"))
+	add_child(loot_labels)
 	add_child(music)
 	music.volume_db = MUSIC_DB
 	_play_music("explore")
