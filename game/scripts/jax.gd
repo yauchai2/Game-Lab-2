@@ -91,7 +91,7 @@ func _spawn_shockwave() -> void:
 	ring.scale = Vector3(0.3, 0.3, 0.3)
 	var tween := ring.create_tween()
 	var final_scale := skill_radius
-	tween.tween_property(ring, "scale", Vector3(final_scale, 1.0, final_scale), 0.25)
+	tween.tween_property(ring, "scale", Vector3(final_scale, 1.0, final_scale), 0.4)
 	tween.tween_callback(ring.queue_free)
 
 func _physics_process(delta: float) -> void:

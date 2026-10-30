@@ -31,6 +31,7 @@
 | `game/scripts/camera_follow.gd` | 鏡頭跟隨 |
 | `game/enemy.tscn`、`game/scripts/enemy.gd` | 敵人：追人、近身攻擊、受擊閃白同擊退（40 血） |
 | `game/scripts/main.gd` | 一波波生成敵人 |
+| `game/scripts/street.gd` | 用方塊程式生成街道、建築、路燈、樹、車（色票見 style-guide） |
 | `game/scripts/hud.gd` | 左上角血條、波數、技能冷卻 |
 | `assets/characters/jax.glb` | Jax 低多邊形模型（由 Blender 腳本生成） |
 | `tools/blender/make_jax.py` | 生成 Jax 模型嘅腳本 |
@@ -40,3 +41,8 @@
 ## 修改 Jax 模型（之後先需要）
 
 模型用腳本生成，改顏色或尺寸就改 `tools/blender/make_jax.py` 再執行；你亦可以直接喺 Blender 打開 `assets/characters/jax.glb`（File → Import → glTF）睇。預覽圖：`docs/art/jax-preview.png`。
+
+
+## 畫面風格設定
+
+專案用 640×360 低解析度渲染再放大 2 倍（`project.godot` 內 `display/window/stretch`），所以畫面有像素階梯感，對應參考影片嘅復古低解析風格。最新畫面預覽：`docs/art/gameplay-preview.png`。

@@ -1,7 +1,7 @@
 extends Camera3D
 
 @export var follow: Node3D
-@export var offset := Vector3(0, 12, 10)
+@export var offset := Vector3(0, 8.6, 12.3)
 @export var smoothing := 8.0
 
 func _ready() -> void:
