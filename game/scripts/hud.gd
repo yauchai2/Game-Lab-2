@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+const SFX := preload("res://game/scripts/sfx.gd")
 const BAR_SIZE := Vector2(140, 8)
 
 var hp_back := ColorRect.new()
@@ -215,6 +216,7 @@ func _on_select(uid: int) -> void:
 
 func _act(method: String) -> void:
 	var msg: String = jax.call(method, selected_uid)
+	SFX.play(self, "ui_error" if msg != "" else "ui_click", -4.0)
 	if method == "scrap_item":
 		selected_uid = -1
 	_refresh_bench()

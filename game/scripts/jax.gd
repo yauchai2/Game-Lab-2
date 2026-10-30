@@ -52,6 +52,7 @@ var attack_swing := 0.0
 @onready var arm_r: Node3D = model.find_child("ArmR", true, false)
 
 const PROGRESS := preload("res://game/scripts/progress.gd")
+const SFX := preload("res://game/scripts/sfx.gd")
 
 func _ready() -> void:
 	add_to_group("player")
@@ -100,6 +101,7 @@ func gain_xp(amount: int) -> void:
 		hp = max_hp
 		flash_text = "升級！"
 		levelup_flash = 1.5
+		SFX.play(self, "levelup")
 
 const ZONE := preload("res://game/scripts/zone.gd")
 
@@ -233,6 +235,7 @@ func toggle_equip(uid: int) -> String:
 	var info := slot_info(uid)
 	if not info.is_empty():
 		slots[info["cart"]][info["idx"]] = null
+		SFX.play(self, "ui_click", -6.0)
 		return ""
 	var item: Variant = find_item(uid)
 	if item == null:
@@ -286,6 +289,7 @@ func take_damage(amount: int) -> void:
 	if dead or iframe_left > 0.0:
 		return
 	hp = maxi(hp - amount, 0)
+	SFX.play(self, "death" if hp == 0 else "hurt", -3.0)
 	if hp == 0:
 		dead = true
 		save_progress()
@@ -351,6 +355,7 @@ func dash(toward: Variant = null) -> void:
 			dash_extra = 1
 			dash_extra_time = 0.8
 	dashed.emit()
+	SFX.play(self, "dash", -4.0)
 	has_target = false
 	look_at(global_position + dash_dir, Vector3.UP)
 
@@ -386,9 +391,11 @@ func use_skill() -> void:
 	has_target = false
 	windup_left = skill_windup + (0.2 if item_in_slots("heavy") != null else 0.0)
 	skill_cast.emit("拆場", slot_names("demolish"))
+	SFX.play(self, "windup", -6.0)
 	skill_timer = skill_cooldown * (1.0 - affix_total("cd", "demolish") / 100.0)
 
 func _slam() -> void:
+	SFX.play(self, "slam")
 	var dmg := float(skill_damage) * (1.0 + affix_total("dmg", "demolish") / 100.0)
 	var radius := skill_radius + affix_total("range", "demolish")
 	var hits := 1
@@ -567,6 +574,7 @@ func _auto_attack() -> void:
 		return
 	attack_timer = attack_cooldown
 	attack_swing = 1.0
+	SFX.play(self, "hit", -8.0, 0.12)
 	_spawn_shockwave(global_position, attack_radius, Color("E7DFC9"), 0.18)
 
 func _animate_limbs(delta: float, moving: bool) -> void:

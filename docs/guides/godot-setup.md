@@ -103,6 +103,25 @@
 
 死咗之後按 **R** 重新開始：**等級、背包、已裝配件都保留**，單據損失一半，敵群同頭目全部重置，由起點再推進。通關後按 R 亦會保留。呢個保留只喺遊戲開住期間有效，關機再開要等之後加存檔。
 
+## 音效
+
+全部音效由 `tools/audio/make_sfx.py` 合成（自製，沒有版權問題），輸出到 `assets/audio/sfx/`。風格參考 SLUMLORDZ 影片：偏響、重低音、帶粗糙失真（低位元＋低取樣率）。
+
+| 事件 | 音效 |
+|---|---|
+| 普通攻擊命中 | hit |
+| 拆場（蓄力／落地） | windup／slam |
+| 衝刺 | dash |
+| 拾取經驗／單據／配件／補血 | pickup_xp／pickup_receipt／pickup_item／pickup_hp |
+| 升級 | levelup |
+| 受傷／倒下 | hurt／death |
+| 敵人倒下／遠程發射 | enemy_die／shoot |
+| 頭目預警／重擊 | boss_warn／boss_slam |
+| 通關 | victory |
+| 工作枱操作／失敗 | ui_click／ui_error |
+
+想改音效：改腳本後執行 `python3 tools/audio/make_sfx.py` 重新輸出。音效播放寫在 `game/scripts/sfx.gd`，各事件處呼叫 `SFX.play(self, "名稱")`。目前沒有背景音樂。
+
 ## 頭目同通關
 
 頭目「收數大佬」（畫面底部有血條）：

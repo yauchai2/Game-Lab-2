@@ -67,11 +67,13 @@ func _physics_process(delta: float) -> void:
 func _slam_start(player: Node3D) -> void:
 	slam_cooldown = 3.5 if hp > max_hp * 0.5 else 2.5
 	slam_pending = SLAM_DELAY
+	SFX.play(self, "boss_warn")
 	slam_center = player.global_position
 	_spawn_zone(slam_center, SLAM_RADIUS, SLAM_DELAY, 0, Color("D6D573"))
 
 func _slam_land(player: Node3D) -> void:
 	slam_pending = -1.0
+	SFX.play(self, "boss_slam")
 	_spawn_zone(slam_center, SLAM_RADIUS, 0.25, 0, Color("CC6657"))
 	var d: Vector3 = player.global_position - slam_center
 	d.y = 0.0

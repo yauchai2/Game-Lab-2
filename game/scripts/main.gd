@@ -1,5 +1,6 @@
 extends Node3D
 
+const SFX := preload("res://game/scripts/sfx.gd")
 const ENEMY_SCENE := preload("res://game/enemy.tscn")
 const BOSS_SCENE := preload("res://game/boss.tscn")
 const BOSS_POS := Vector3(0, 0.05, -17)
@@ -46,7 +47,8 @@ func _spawn_boss() -> void:
 	boss.global_position = BOSS_POS
 	boss.defeated.connect(func() -> void:
 		victory = true
-		boss = null)
+		boss = null
+		SFX.play(self, "victory"))
 
 func camps_cleared() -> int:
 	var n := 0

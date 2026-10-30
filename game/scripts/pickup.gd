@@ -1,6 +1,8 @@
 extends Node3D
 ## Loot dropped by enemies. kind: "xp" (mint), "hp" (coral) or "receipt" (chalk white, the currency) or "item" (a random cartridge attachment, coloured by rarity). Walk close to collect.
 
+const SFX := preload("res://game/scripts/sfx.gd")
+
 var kind := "xp"
 var item := {}
 var value := 10
@@ -37,13 +39,17 @@ func _process(delta: float) -> void:
 		match kind:
 			"xp":
 				player.gain_xp(value)
+				SFX.play(self, "pickup_xp", -10.0, 0.15)
 			"hp":
 				player.heal(value)
+				SFX.play(self, "pickup_hp", -4.0)
 			"receipt":
 				player.receipts += value
+				SFX.play(self, "pickup_receipt", -6.0)
 			"item":
 				if not player.add_item(item):
 					return
+				SFX.play(self, "pickup_item")
 		queue_free()
 	elif dist < MAGNET_RANGE and age > 0.4:
 		global_position += to.normalized() * 9.0 * delta

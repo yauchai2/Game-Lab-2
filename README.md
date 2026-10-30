@@ -14,7 +14,7 @@
 | `assets/audio/` | 音效、音樂 |
 | `game/` | 遊戲場景同腳本（Godot） |
 | 根目錄 `project.godot` | Godot 專案檔（放根目錄先讀到 `assets/`） |
-| `tools/` | 小腳本、輔助工具（例如 `tools/blender/` 模型生成腳本） |
+| `tools/` | 小腳本、輔助工具（例如 `tools/blender/` 模型生成腳本、`tools/audio/` 音效合成腳本） |
 
 ## 現有文件
 
