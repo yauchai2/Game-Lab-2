@@ -28,11 +28,25 @@ func _ready() -> void:
 
 func _build_storefronts() -> void:
 	sign3d("合租單位", Vector3(20.2, 3.8, 11.0), 26)
+	interact(Vector3(19.4, 0, 11.0), "回家", func() -> void:
+		if CHAPTER.has("pawn_info"):
+			save_and_go("home")
+		else:
+			say("", "還有事要辦，先不回去。", 1.8), 2.2, false)
+	if CHAPTER.has("boss1_done"):
+		_return_state()
 	box(Vector3(20.85, 1.1, 11.0), Vector3(0.12, 2.2, 1.4), CORAL)
 	sign3d("Bo 商店　24H", Vector3(20.0, 3.4, 2.0), 28, YELLOW)
 	sign3d("當舖", Vector3(20.2, 3.4, -9.0), 26)
 	sign3d("修車檔", Vector3(20.2, 3.4, -15.0), 26)
 	sign3d("自助洗衣", Vector3(20.2, 3.4, -4.0), 26)
+
+## 中段之後返街：封鎖、斷電，街坊拉拖板共用剩下的電。
+func _return_state() -> void:
+	main.get_node("Sun").light_energy = 0.3
+	for p in [Vector3(-4, 0, 16.5), Vector3(8, 0, -17.0), Vector3(-10, 0, 3.0)]:
+		box(p + Vector3(0, 0.9, 0), Vector3(3.2, 1.8, 1.8), NAVY, true)
+		sign3d("封鎖", p + Vector3(0, 2.6, 0), 20, CORAL)
 
 func _build_shop() -> void:
 	# 店員機械人與櫃檯
@@ -68,8 +82,63 @@ func _build_people() -> void:
 			idx[0] += 1, 2.0, false)
 
 func _build_exit() -> void:
-	sign3d("舊街區（練習場）", Vector3(0, 3.0, -19.5), 24)
-	interact(Vector3(0, 0, -17.5), "前往舊街區（自由練習）", func() -> void: save_and_go("arena"), 2.5, false)
+	portal(Vector3(-14, 0, -17.5), "前往舊街區（自由練習）", "舊街區（練習）", func() -> void: save_and_go("arena"))
+	portal(Vector3(-6, 0, -17.5), "前往後巷維修場", "後巷維修場", func() -> void: _go("yard"))
+	portal(Vector3(0, 0, -17.5), "前往天台接駁區", "天台接駁區", func() -> void: _go("roof"))
+	portal(Vector3(6, 0, -17.5), "前往高架橋下管理站", "管理站", func() -> void: _go("station"))
+	# 當舖老闆與修車師傅
+	person(Vector3(18.5, 0, -9.0), Color("CC6657"), "當舖老闆")
+	interact(Vector3(17.5, 0, -9.0), "和當舖老闆談話", _on_pawn, 2.2, false)
+	person(Vector3(18.5, 0, -15.0), Color("859AC1"), "修車師傅")
+	interact(Vector3(17.5, 0, -15.0), "和修車師傅談話", _on_mechanic, 2.2, false)
+	person(Vector3(12.0, 0, -5.0), Color("D6D573"), "天台街坊")
+	interact(Vector3(11.0, 0, -5.0), "和天台街坊談話", _on_roofer, 2.2, false)
+
+func _go(level_name: String) -> void:
+	if not CHAPTER.has("p1_done"):
+		say("", "先處理眼前的事。", 1.8)
+		return
+	if not CHAPTER.has("pawn_talked"):
+		say("", "先去當舖問問原始紀錄的事。", 2.4)
+		return
+	save_and_go(level_name)
+
+func _on_pawn() -> void:
+	if not CHAPTER.has("p1_done"):
+		say("當舖老闆", "忙著呢。有事先把門口那堆東西處理好。", 2.6)
+	elif CHAPTER.has("boss1_done"):
+		CHAPTER.set_flag("pawn_info")
+		say("當舖老闆", "紀錄正由一輛行政運輸車送走，車隊快要上高架橋了。", 3.4)
+		say("當舖老闆", "你回家拿頭盔吧。他們不會等你吃完三明治。", 3.0)
+		_refresh_state()
+	elif not CHAPTER.has("pawn_talked"):
+		CHAPTER.set_flag("pawn_talked")
+		say("當舖老闆", "原始紀錄，可能還留在高架橋上面的管理站。", 3.2)
+		say("當舖老闆", "上去之前，先找回通行零件（維修場），再向天台借一根天線。", 3.6)
+		_refresh_state()
+	else:
+		say("當舖老闆", "零件在維修場，天線在天台。管理站在高架橋下。", 3.0)
+
+func _on_mechanic() -> void:
+	if not CHAPTER.has("boss1_done"):
+		say("修車師傅", "維修場那邊亂得很。找得到通行零件，記得順便幫我看看。", 3.0)
+	elif CHAPTER.has("mechanic_gift"):
+		say("修車師傅", "裝上去，別問我保固多久。", 2.2)
+	else:
+		CHAPTER.set_flag("mechanic_gift")
+		var item: Dictionary = jax.make_item(jax.ITEM_TYPES.keys().pick_random(), 1)
+		jax.add_item(item)
+		say("修車師傅", "你把零件帶回來了。這個給你，加裝在卡匣上。", 3.2)
+
+func _on_roofer() -> void:
+	if not CHAPTER.has("boss1_done"):
+		say("天台街坊", "天台上有人守著，過去要小心。", 2.6)
+	elif CHAPTER.has("roofer_gift"):
+		say("天台街坊", "天台的燈號會告訴你哪邊安全。", 2.4)
+	else:
+		CHAPTER.set_flag("roofer_gift")
+		jax.heal(jax.max_hp)
+		say("天台街坊", "你幫過我。喝點熱的，燈號我替你看著。", 3.0)
 
 func _resume() -> void:
 	if not CHAPTER.has("arrived"):
@@ -91,8 +160,14 @@ func _refresh_state() -> void:
 		objective("按 C 打開工作枱，裝上核准模組")
 	elif not CHAPTER.has("cl03_fixed"):
 		objective("扶起並重新接上店員機械人（CL-03）")
+	elif not CHAPTER.has("pawn_talked"):
+		objective("向當舖老闆打聽原始住戶紀錄")
+	elif not CHAPTER.has("boss1_done"):
+		objective("找回通行零件（維修場）、借天線（天台），到管理站讀取紀錄")
+	elif not CHAPTER.has("pawn_info"):
+		objective("回街，向當舖老闆問運輸車的路線")
 	else:
-		objective("第一章仍在製作：可去舊街區自由練習")
+		objective("回家拿頭盔（合租單位的門）")
 	cl03_it.enabled = not CHAPTER.has("bought") and not CHAPTER.has("ambush")
 
 func _on_buy() -> void:
@@ -210,5 +285,5 @@ func _maybe_finish() -> void:
 	if CHAPTER.has("module_equipped") and CHAPTER.has("cl03_fixed") and not CHAPTER.has("p1_done"):
 		CHAPTER.set_flag("p1_done")
 		get_tree().create_timer(2.5).timeout.connect(func() -> void:
-			_story_hud().title("階段 1 完成", "第一章仍在製作中：下一段是後巷維修場", 3.5)
+			_story_hud().title("核准模組已裝上", "去當舖問問原始住戶紀錄", 3.0)
 			_refresh_state())

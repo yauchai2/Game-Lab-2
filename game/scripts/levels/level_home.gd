@@ -130,6 +130,9 @@ func _build_logic() -> void:
 	interact(Vector3(5.2, 0, 0.9), "出門", _on_door, 2.6, false)
 
 func _start() -> void:
+	if CHAPTER.has("pawn_info"):
+		_start_return()
+		return
 	# 主角還在睡：躺在沙發上，玩家先拍醒電視。
 	jax.global_position = Vector3(-4, 1.15, -2.0)
 	jax.model.rotation.x = -1.4
@@ -137,6 +140,22 @@ func _start() -> void:
 	jax.set_process_unhandled_input(false)
 	say("", "（門外有人拍門）「醒了嗎？你的車又擋住別人做生意。」", 3.2)
 	_update_objective()
+
+## 第一章中段後回家：拿頭盔，室友留字條，出門追運輸車。
+func _start_return() -> void:
+	jax.global_position = Vector3(0, 0.87, 3)
+	tv_screen.get_node("Mesh").material_override = _mat(Color("75C7B0"), true)
+	for it in get_tree().get_nodes_in_group("interactables"):
+		it.enabled = it.prompt == "出門"
+	var helmet := box(Vector3(1.3, 1.0, -2.4), Vector3(0.5, 0.35, 0.5), CORAL)
+	interact(Vector3(1.3, 0, -1.2), "拿起頭盔", func() -> void:
+		helmet.visible = false
+		CHAPTER.set_flag("helmet")
+		say("", "桌上的材料已經擺好了。一張字條壓在三明治旁邊。", 3.0)
+		say("字條", "「還做不做？」", 2.2)
+		say("", "（你戴上頭盔，指了指桌上的材料：回來再做。）", 3.2)
+		objective("出門，追上運輸車"), 2.2)
+	objective("拿起桌上的頭盔")
 
 func _first_missing() -> String:
 	for s in STEPS:
@@ -211,6 +230,16 @@ func _on_junk() -> void:
 	_done("junk")
 
 func _on_door() -> void:
+	if CHAPTER.has("pawn_info"):
+		if not CHAPTER.has("helmet"):
+			say("", "先拿頭盔。", 1.8)
+			return
+		var loader := main.get_node("Street")
+		if loader.LEVELS.has("chase"):
+			save_and_go("chase")
+		else:
+			_story_hud().title("階段 2 完成", "階段 3：追車、章末頭目與結局仍在製作中", 4.0)
+		return
 	var s := _first_missing()
 	if s != "":
 		say("", "還不能出門。" + STEP_TEXT[s] + "。", 2.6)

@@ -5,6 +5,9 @@ const CHAPTER := preload("res://game/scripts/chapter.gd")
 const LEVELS := {
 	"home": preload("res://game/scripts/levels/level_home.gd"),
 	"street": preload("res://game/scripts/levels/level_street.gd"),
+	"yard": preload("res://game/scripts/levels/level_yard.gd"),
+	"roof": preload("res://game/scripts/levels/level_roof.gd"),
+	"station": preload("res://game/scripts/levels/level_station.gd"),
 	"arena": preload("res://game/scripts/street.gd"),
 }
 
