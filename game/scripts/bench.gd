@@ -70,11 +70,11 @@ func close() -> void:
 
 # ---------- 小工具 ----------
 
-func _label(text: String, pos: Vector2, size := 10, color := Color("E7DFC9")) -> Label:
+func _label(text: String, pos: Vector2, font_px := 10, color := Color("E7DFC9")) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.position = pos
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", font_px)
 	l.add_theme_color_override("font_color", color)
 	body.add_child(l)
 	return l
@@ -90,10 +90,10 @@ func _style(bg: Color, border: Color, width: int) -> StyleBoxFlat:
 	s.content_margin_bottom = 1
 	return s
 
-func _cell(pos: Vector2, size: Vector2, text: String, border: Color, fill: Color, width: int) -> Button:
+func _cell(pos: Vector2, cell_size: Vector2, text: String, border: Color, fill: Color, width: int) -> Button:
 	var b := Button.new()
 	b.position = pos
-	b.size = size
+	b.size = cell_size
 	b.text = text
 	b.clip_text = true
 	b.add_theme_font_size_override("font_size", 10)
@@ -155,7 +155,7 @@ func _left_column() -> void:
 	for i in lines.size():
 		_label(lines[i], Vector2(28, 236 + i * 14), 9)
 
-func _slot_cell(cart: String, idx: int, pos: Vector2, size: Vector2) -> void:
+func _slot_cell(cart: String, idx: int, pos: Vector2, cell_size: Vector2) -> void:
 	var item: Variant = jax.slots[cart][idx]
 	var title: String
 	var border := Color("5A6280")
@@ -169,7 +169,7 @@ func _slot_cell(cart: String, idx: int, pos: Vector2, size: Vector2) -> void:
 		border = RARITY_COLORS[item["rarity"]]
 		name_color = border
 	var selected := item != null and uid == selected_uid
-	var b := _cell(pos, size, title, Color.WHITE if selected else border, CELL_ON if item != null else CELL, 3 if selected else 2)
+	var b := _cell(pos, cell_size, title, Color.WHITE if selected else border, CELL_ON if item != null else CELL, 3 if selected else 2)
 	b.add_theme_color_override("font_color", name_color)
 	b.add_theme_color_override("font_hover_color", name_color)
 	b.pressed.connect(_on_slot_pressed.bind(uid))
