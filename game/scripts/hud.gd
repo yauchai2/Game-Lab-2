@@ -106,9 +106,9 @@ func _process(_delta: float) -> void:
 	var cd: float = jax.skill_timer
 	var skill := "就緒" if cd <= 0.0 else "%.1fs" % cd
 	var dash: String = "就緒" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
-	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d\n拆場［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］  音樂［M］" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts, skill, dash]
+	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d\n%s［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］  音樂［M］" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts, jax.skill_name, skill, dash]
 	var b: Variant = get_parent().boss
-	var boss_alive: bool = b != null and is_instance_valid(b) and b.hp > 0
+	var boss_alive: bool = b != null and is_instance_valid(b) and b.hp > 0 and b.awake
 	boss_back.visible = boss_alive
 	boss_label.visible = boss_alive
 	if boss_alive:
@@ -166,7 +166,9 @@ func _item_line(it: Dictionary) -> String:
 	var affixes: String = jax.item_affix_text(it)
 	return line + ("  (" + affixes + ")" if affixes != "" else "")
 
-const CART_NAMES := {"demolish": "拆場（Q／右鍵）", "skate": "滑板衝刺（空白鍵）"}
+func _cart_name(cart: String) -> String:
+	return jax.skill_name + "（Q／右鍵）" if cart == "demolish" else "滑板衝刺（空白鍵）"
+
 const CART_TAGS := {"demolish": "Q", "skate": "衝"}
 
 func _refresh_bench() -> void:
@@ -177,7 +179,7 @@ func _refresh_bench() -> void:
 	for cart in jax.slots:
 		for i in jax.slots[cart].size():
 			var it: Variant = jax.slots[cart][i]
-			var b := _bench_button("［%s］%s　槽 %s：%s" % [CART_TAGS[cart], CART_NAMES[cart], "AB"[i], _item_line(it) if it != null else "（空）"], _on_slot.bind(cart, i))
+			var b := _bench_button("［%s］%s　槽 %s：%s" % [CART_TAGS[cart], _cart_name(cart), "AB"[i], _item_line(it) if it != null else "（空）"], _on_slot.bind(cart, i))
 			if it != null:
 				b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
 			bench.add_child(b)

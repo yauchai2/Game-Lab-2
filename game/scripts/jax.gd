@@ -53,11 +53,36 @@ var attack_swing := 0.0
 
 const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
+const SKYE_MODEL := preload("res://assets/characters/skye.glb")
+
+var char_id := "jax"
+var skill_name := "拆場"
+var skill_center := Vector3.ZERO
 
 func _ready() -> void:
 	add_to_group("player")
+	char_id = PROGRESS.character
+	if char_id == "skye":
+		_become_skye()
 	_load_progress()
 	hp = max_hp
+
+# Skye：遠程射擊、惡作劇彈（投向滑鼠位置的範圍攻擊）。
+func _become_skye() -> void:
+	skill_name = "惡作劇彈"
+	max_hp = 90
+	speed = 6.4
+	skill_windup = 0.2
+	var fresh: Node3D = SKYE_MODEL.instantiate()
+	fresh.transform = model.transform
+	remove_child(model)
+	model.queue_free()
+	add_child(fresh)
+	model = fresh
+	leg_l = model.find_child("LegL", true, false)
+	leg_r = model.find_child("LegR", true, false)
+	arm_l = model.find_child("ArmL", true, false)
+	arm_r = model.find_child("ArmR", true, false)
 
 # 死亡後保留等級、背包、已裝配件；單據損失一半。
 func save_progress(lose_half_receipts := true) -> void:
@@ -389,8 +414,18 @@ func use_skill() -> void:
 	if dead or skill_timer > 0.0 or windup_left >= 0.0 or dash_left > 0.0:
 		return
 	has_target = false
+	if char_id == "skye":
+		var p: Variant = _pick_point(get_viewport().get_mouse_position())
+		var aim: Vector3 = p if p != null else global_position - global_transform.basis.z * 6.0
+		var off := aim - global_position
+		off.y = 0.0
+		if off.length() > 9.0:
+			off = off.normalized() * 9.0
+		skill_center = global_position + off
+		if off.length() > 0.1:
+			look_at(global_position + off, Vector3.UP)
 	windup_left = skill_windup + (0.2 if item_in_slots("heavy") != null else 0.0)
-	skill_cast.emit("拆場", slot_names("demolish"))
+	skill_cast.emit(skill_name, slot_names("demolish"))
 	SFX.play(self, "windup", -6.0)
 	skill_timer = skill_cooldown * (1.0 - affix_total("cd", "demolish") / 100.0)
 
@@ -426,7 +461,7 @@ func _slam() -> void:
 		opts["chain"] = dmg * 0.5 * item_power(chain)
 	if frenzy != null:
 		opts["frenzy"] = 0.25 * item_power(frenzy)
-	var center := global_position
+	var center := skill_center if char_id == "skye" else global_position
 	for h in hits:
 		var t := delay + h * 0.35
 		if t <= 0.0:
@@ -563,6 +598,9 @@ func _physics_process(delta: float) -> void:
 func _auto_attack() -> void:
 	if attack_timer > 0.0:
 		return
+	if char_id == "skye":
+		_shoot_nearest()
+		return
 	var hit := 0
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var d: Vector3 = enemy.global_position - global_position
@@ -576,6 +614,36 @@ func _auto_attack() -> void:
 	attack_swing = 1.0
 	SFX.play(self, "hit", -8.0, 0.12)
 	_spawn_shockwave(global_position, attack_radius, Color("E7DFC9"), 0.18)
+
+func _shoot_nearest() -> void:
+	var best: Node3D = null
+	var best_d := 9.0
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		var d: float = enemy.global_position.distance_to(global_position)
+		if d < best_d:
+			best_d = d
+			best = enemy
+	if best == null:
+		return
+	attack_timer = 0.4
+	attack_swing = 1.0
+	best.take_damage(7, global_position, 2.0)
+	SFX.play(self, "shoot", -8.0, 0.1)
+	_tracer(global_position + Vector3(0, 0.9, 0), best.global_position + Vector3(0, 0.8, 0))
+
+func _tracer(a: Vector3, b: Vector3) -> void:
+	var mi := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.05, 0.05, a.distance_to(b))
+	mi.mesh = box
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color("D6D573")
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mi.material_override = m
+	get_parent().add_child(mi)
+	mi.global_position = (a + b) / 2.0
+	mi.look_at(b, Vector3.UP)
+	get_tree().create_timer(0.07).timeout.connect(mi.queue_free)
 
 func _animate_limbs(delta: float, moving: bool) -> void:
 	var swing := 0.0
