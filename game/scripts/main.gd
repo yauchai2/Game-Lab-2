@@ -1,6 +1,7 @@
 extends Node3D
 
 const SFX := preload("res://game/scripts/sfx.gd")
+const STORY := preload("res://game/scripts/story_state.gd")
 const ENEMY_SCENE := preload("res://game/enemy.tscn")
 const BOSS_SCENE := preload("res://game/boss.tscn")
 const BOSS_POS := Vector3(0, 0.05, -17)
@@ -61,14 +62,17 @@ func _fit_3d_resolution() -> void:
 func _ready() -> void:
 	GS.apply(get_tree())
 	get_tree().root.size_changed.connect(_fit_3d_resolution)
-	_add_boundary()
-	jax.global_position = START_POS
-	for i in CAMPS.size():
-		_spawn_camp(i)
-	_spawn_boss()
-	chapter = CanvasLayer.new()
-	chapter.set_script(preload("res://game/scripts/chapter.gd"))
-	add_child(chapter)
+	# 第一章場景由 Street 節點上的 level_loader 建立（見 story_state.gd）。
+	# 只有「arena」（舊試玩場與舊版第一區流程）在這裡生成敵群、頭目與舊章節流程。
+	if STORY.level == "arena":
+		_add_boundary()
+		jax.global_position = START_POS
+		for i in CAMPS.size():
+			_spawn_camp(i)
+		_spawn_boss()
+		chapter = CanvasLayer.new()
+		chapter.set_script(preload("res://game/scripts/chapter.gd"))
+		add_child(chapter)
 	var loot_labels := CanvasLayer.new()
 	loot_labels.set_script(preload("res://game/scripts/loot_labels.gd"))
 	add_child(loot_labels)

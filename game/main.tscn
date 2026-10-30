@@ -6,7 +6,8 @@
 [ext_resource type="Script" path="res://game/scripts/camera_follow.gd" id="3_cam"]
 [ext_resource type="Script" path="res://game/scripts/main.gd" id="5_main"]
 [ext_resource type="Script" path="res://game/scripts/hud.gd" id="6_hud"]
-[ext_resource type="Script" path="res://game/scripts/street.gd" id="7_street"]
+[ext_resource type="Script" path="res://game/scripts/level_loader.gd" id="7_street"]
+[ext_resource type="Script" path="res://game/scripts/story.gd" id="8_story"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_floor"]
 albedo_color = Color(0.231, 0.247, 0.306, 1)
@@ -56,6 +57,9 @@ transform = Transform3D(0.866, 0.3830, -0.3214, 0, 0.6428, 0.7660, 0.5, -0.6634,
 
 [node name="Street" type="Node3D" parent="."]
 script = ExtResource("7_street")
+
+[node name="Story" type="Node" parent="."]
+script = ExtResource("8_story")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("6_hud")

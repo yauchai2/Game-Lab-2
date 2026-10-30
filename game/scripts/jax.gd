@@ -211,6 +211,9 @@ const ITEM_TYPES := {
 	"vacuum": {"name": "黑洞", "desc": "先吸住敵人再爆", "cart": "demolish"},
 	"chain": {"name": "連鎖反應", "desc": "擊殺敵人會爆炸", "cart": "demolish"},
 	"frenzy": {"name": "腎上腺素", "desc": "每次命中縮短冷卻", "cart": "demolish"},
+	"track": {"name": "核准・追蹤", "desc": "技能會輕微追向最近的敵人", "cart": "demolish"},
+	"link": {"name": "核准・連線", "desc": "標記兩個敵人，傷害部分傳導", "cart": "demolish"},
+	"overload": {"name": "核准・超載", "desc": "消耗標記，對最近的敵人造成破防爆發", "cart": "demolish"},
 	"trail": {"name": "火焰軌跡", "desc": "翻滾後留下火焰", "cart": "skate"},
 	"grind": {"name": "磨擦衝撞", "desc": "翻滾穿過敵人造成傷害", "cart": "skate"},
 	"double": {"name": "雙重翻滾", "desc": "多一段翻滾充能", "cart": "skate"},
@@ -826,7 +829,7 @@ func _run_skill(cart: String, centers: Array, dmg_mult: float, radius_base: floa
 	var radius := radius_base + affix_total("range", cart)
 	var hits := hits_base
 	var delay := 0.0
-	var opts := {"knock": 6.0, "vacuum": 0.0, "chain": 0.0, "frenzy": 0.0, "cd_key": cart}
+	var opts := {"knock": 6.0, "vacuum": 0.0, "chain": 0.0, "frenzy": 0.0, "cd_key": cart, "link": 0.0, "overload": 0.0}
 	var heavy: Variant = item_in_slots("heavy", cart)
 	var delayed: Variant = item_in_slots("delay", cart)
 	var burst: Variant = item_in_slots("burst", cart)
@@ -835,6 +838,9 @@ func _run_skill(cart: String, centers: Array, dmg_mult: float, radius_base: floa
 	var vacuum: Variant = item_in_slots("vacuum", cart)
 	var chain: Variant = item_in_slots("chain", cart)
 	var frenzy: Variant = item_in_slots("frenzy", cart)
+	var track: Variant = item_in_slots("track", cart)
+	var link: Variant = item_in_slots("link", cart)
+	var overload: Variant = item_in_slots("overload", cart)
 	if heavy != null:
 		dmg *= 1.0 + 0.5 * item_power(heavy)
 	if delayed != null:
@@ -853,8 +859,19 @@ func _run_skill(cart: String, centers: Array, dmg_mult: float, radius_base: floa
 		opts["chain"] = dmg * 0.5 * item_power(chain)
 	if frenzy != null:
 		opts["frenzy"] = 0.25 * item_power(frenzy)
+	if link != null:
+		opts["link"] = 0.5 * item_power(link)
+	if overload != null:
+		opts["overload"] = 0.6 * item_power(overload)
 	for ci in centers.size():
 		var center: Vector3 = centers[ci]
+		if track != null:
+			# 核准模組・追蹤：技能中心向最近的敵人偏移一小段
+			var nearest := _nearest_enemy(center, radius + 4.0)
+			if nearest != null:
+				var pull: Vector3 = nearest.global_position - center
+				pull.y = 0.0
+				center += pull.limit_length(1.5 * item_power(track))
 		for h in hits:
 			var t := delay + h * maxf(tick, 0.2 if hits > 1 else 0.0) + ci * 0.09
 			if t <= 0.0:
@@ -866,10 +883,35 @@ func _run_skill(cart: String, centers: Array, dmg_mult: float, radius_base: floa
 		if linger != null:
 			_spawn_zone(center, 2.0, 3.0 + 0.5 * linger["rarity"], int(8 * item_power(linger)), Color("CC6657"))
 
+func _nearest_enemy(from: Vector3, max_dist: float) -> Node3D:
+	var best: Node3D = null
+	var best_d := max_dist
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		var d: Vector3 = enemy.global_position - from
+		d.y = 0.0
+		if d.length() < best_d:
+			best_d = d.length()
+			best = enemy
+	return best
+
 func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void:
 	var hit_count := 0
 	var kills: Array[Vector3] = []
 	var pull: float = opts["vacuum"]
+	# 核准模組：連線標記離中心最近的兩個敵人；超載對最近的敵人造成破防爆發。
+	var marked: Array = []
+	if opts["link"] > 0.0 or opts["overload"] > 0.0:
+		var near: Array = get_tree().get_nodes_in_group("enemies").filter(func(e: Node3D) -> bool: return e.global_position.distance_to(center) <= radius + 3.0)
+		near.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(center) < b.global_position.distance_to(center))
+		marked = near.slice(0, 2)
+	if opts["overload"] > 0.0 and not marked.is_empty():
+		var focus: Node3D = marked[0]
+		focus.take_damage(int(dmg * opts["overload"]), center, 12.0, true)
+		if "cooldown" in focus:
+			focus.cooldown = 2.0
+	if opts["link"] > 0.0 and marked.size() == 2:
+		marked[0].take_damage(int(dmg * opts["link"]), center, 2.0)
+		marked[1].take_damage(int(dmg * opts["link"]), center, 2.0)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var away: Vector3 = enemy.global_position - center
 		away.y = 0.0

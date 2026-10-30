@@ -22,6 +22,9 @@ var zoom_goal := 1.0
 var boss_blend := 0.0
 var lead := Vector3.ZERO
 var dragging := false
+## 過場：設定後鏡頭固定在目標旁邊並看向目標（高架橋追逐演出用）。
+var cine_target: Node3D = null
+var cine_offset := Vector3.ZERO
 
 func add_shake(amount: float) -> void:
 	shake = maxf(shake, amount)
@@ -51,6 +54,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		pitch_deg = clampf(pitch_deg + event.relative.y * 0.2, PITCH_MIN, PITCH_MAX)
 
 func _process(delta: float) -> void:
+	if cine_target != null:
+		global_position = cine_target.global_position + cine_offset
+		look_at(cine_target.global_position + Vector3(0, 1.2, 0))
+		shake = move_toward(shake, 0.0, delta * 1.5)
+		return
 	var turn := 0.0
 	if Input.is_key_pressed(KEY_BRACKETLEFT):
 		turn += 1.0

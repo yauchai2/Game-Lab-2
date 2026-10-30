@@ -161,7 +161,8 @@ func _process(_delta: float) -> void:
 	orb.label_text = "%d" % jax.hp
 	orb.queue_redraw()
 	xp_fill.size.x = BAR_SIZE.x * float(jax.xp) / float(jax.xp_to_next())
-	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts]
+	var camps_text := "  據點 %d/%d" % [get_parent().camps_cleared(), get_parent().CAMPS.size()] if get_parent().STORY.level == "arena" else ""
+	info.text = "等級 %d  生命 %d/%d%s  單據 %d" % [jax.level, jax.hp, jax.max_hp, camps_text, jax.receipts]
 	_update_skill_bar()
 	_update_flasks()
 	var b: Variant = get_parent().boss

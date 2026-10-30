@@ -40,7 +40,7 @@ func _ready() -> void:
 		r.rotation = deg_to_rad(-20)
 		stage.add_child(r)
 	_text("疊域", Vector2(0, 52), 54, Color("E7DFC9"))
-	_text("第一章　橋底街", Vector2(0, 120), 14, Color("75C7B0"))
+	_text("第一章　吃完再說", Vector2(0, 120), 14, Color("75C7B0"))
 	_text("TURB　整件回收　取消費另計", Vector2(0, 336), 9, Color("9AA3AD"))
 	var y := 176
 	var new_btn := _button("新遊戲", Vector2(270, y))

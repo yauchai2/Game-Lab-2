@@ -28,6 +28,8 @@ var show_bar := true
 var element := "phys"
 ## 韌性：小怪被連打幾下就踉蹌（短硬直）；大怪（精英、頭目）只有重擊（技能、完美格擋反擊）才打得破。
 var big := false
+## 裝甲（第一章維修場）：普通攻擊只有兩成傷害，技能（重擊）才能破防。
+var armor := false
 var poise_max := 24.0
 var poise := 24.0
 var poise_wait := 0.0
@@ -122,6 +124,8 @@ func _update_bar() -> void:
 func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0, heavy_hit := false) -> void:
 	if hp <= 0:
 		return
+	if armor and not heavy_hit:
+		amount = maxi(int(amount * 0.2), 1)
 	hp -= amount
 	var frac := float(amount) / float(max_hp)
 	var big_hit := frac >= 0.2

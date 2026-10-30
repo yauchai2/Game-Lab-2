@@ -2,6 +2,7 @@ extends RefCounted
 ## 長期成長：死亡或通關後重開場景，等級、背包、配件都保留；同時存到硬碟（user://save.dat）。
 
 const SAVE_PATH := "user://save.dat"
+const STORY := preload("res://game/scripts/story_state.gd")
 
 static var data := {}
 static var character := "jax"
@@ -16,6 +17,7 @@ static func reset() -> void:
 	talked = false
 	chapter_done = false
 	choice = ""
+	STORY.reset()
 
 static func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
@@ -25,7 +27,8 @@ static func write() -> void:
 	if f == null:
 		return
 	f.store_var({"data": data, "character": character, "intro_seen": intro_seen, "talked": talked,
-		"chapter_done": chapter_done, "choice": choice})
+		"chapter_done": chapter_done, "choice": choice,
+		"story_level": STORY.level, "story_flags": STORY.flags})
 
 static func load_from_disk() -> bool:
 	if not has_save():
@@ -42,4 +45,6 @@ static func load_from_disk() -> bool:
 	talked = d.get("talked", true)
 	chapter_done = d.get("chapter_done", false)
 	choice = d.get("choice", "")
+	STORY.level = d.get("story_level", "home")
+	STORY.flags = d.get("story_flags", {})
 	return true
