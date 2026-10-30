@@ -19,6 +19,7 @@
 ## 現有文件
 
 - `docs/art/style-guide.md` — 美術風格（由兩條參考影片整理）
+- `docs/art/slumlordz-sandwich.mp4`、`docs/art/ice-cream.mp4` — 美術與整體感覺參考影片
 - `docs/art/asset-spec.md` — 換模型／場景嘅資產規格
 - `docs/design/world.md` — 世界觀（疊域、勢力、衝突、反社會基調）
 - `docs/design/first-district.md` — 第一區橋底里流程（開場、教學戰、頭目、結算選擇）
@@ -32,5 +33,5 @@
 1. **一個主題一個檔案**，更新舊檔，唔好開新版本（版本記錄交畀 git）。
 2. 新增檔案前，先睇呢個表，放入對應資料夾。
 3. 檔名全部細楷英文、用 `-` 連接，例如 `jax-idle.blend`、`street-lamp.glb`。角色檔名前綴用角色名：`jax-`、`vee-`、`skye-`、`niko-`。
-4. 大型參考影片（mp4）唔放入 repo，留喺 Google Drive `Game Lab 2` 資料夾。
+4. 參考影片（mp4）放喺 `docs/art/`（Alan 2026-10-30 同意；單檔建議 50MB 以下，更大嘅仍留 Google Drive `Game Lab 2` 資料夾）。
 5. 決定咗嘅重要事項，記喺對應 docs 檔案頂部。
