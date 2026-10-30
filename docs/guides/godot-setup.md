@@ -15,7 +15,8 @@
 
 1. Godot 啟動後按 **Import**，選 repo 根目錄嘅 `project.godot`，按 **Import & Edit**。（第一次會自動匯入 Jax 模型，等幾秒。）
 2. 按右上角 **▶**（`F5`）。
-3. 滑鼠**左鍵**點地板，Jax 就會行去嗰度。
+3. 滑鼠**左鍵**點地板，Jax 行過去（鏡頭跟住，有走路動作）。
+4. 行近綠色木樁，按 **Q** 或滑鼠**右鍵**，Jax 彎身蓄力後放「拆場」重擊（範圍 3.5 米，冷卻 1.5 秒），木樁要打 3 下先倒。
 
 如果有紅色錯誤，截圖或複製底部紅字畀我。
 
@@ -25,7 +26,9 @@
 |---|---|
 | `project.godot` | Godot 專案設定（喺 repo 根目錄，咁 Godot 先讀到 `assets/`） |
 | `game/main.tscn` | 主場景：地板、Jax、鏡頭、燈 |
-| `game/scripts/jax.gd` | Jax 點擊移動腳本 |
+| `game/scripts/jax.gd` | Jax 移動、走路動畫、「拆場」技能 |
+| `game/scripts/camera_follow.gd` | 鏡頭跟隨 |
+| `game/enemy.tscn`、`game/scripts/enemy.gd` | 木樁敵人（60 血，受擊閃白） |
 | `assets/characters/jax.glb` | Jax 低多邊形模型（由 Blender 腳本生成） |
 | `tools/blender/make_jax.py` | 生成 Jax 模型嘅腳本 |
 

@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://game/scripts/enemy.gd" id="1_enemy"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_enemy"]
+size = Vector3(1, 1.6, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape_enemy"]
+size = Vector3(1, 1.6, 1)
+
+[node name="Enemy" type="StaticBody3D"]
+script = ExtResource("1_enemy")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+mesh = SubResource("BoxMesh_enemy")
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("BoxShape_enemy")
