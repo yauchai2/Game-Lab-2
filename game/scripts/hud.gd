@@ -90,7 +90,10 @@ func _ready() -> void:
 	card_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card_band.add_child(card_sub)
 	jax.skill_cast.connect(_show_card)
-	jax.dashed.connect(lines.burst.bind(1.0))
+	jax.dashed.connect(func() -> void:
+		if jax.slot_names("skate") != "":
+			lines.burst(1.0)
+			_show_card("滑板衝刺", jax.slot_names("skate")))
 	jax.slammed.connect(func(hits: int) -> void: lines.burst(clampf(0.5 + hits * 0.25, 0.5, 1.5)))
 	banner.position = Vector2(8, 150)
 	banner.add_theme_font_size_override("font_size", 20)
@@ -162,17 +165,18 @@ func _item_line(it: Dictionary) -> String:
 	var affixes: String = jax.item_affix_text(it)
 	return line + ("  (" + affixes + ")" if affixes != "" else "")
 
-const CART_NAMES := {"demolish": "拆場", "skate": "滑板衝刺"}
+const CART_NAMES := {"demolish": "拆場（Q／右鍵）", "skate": "滑板衝刺（空白鍵）"}
 const CART_TAGS := {"demolish": "Q", "skate": "衝"}
 
 func _refresh_bench() -> void:
 	for c in bench.get_children():
 		c.queue_free()
 	bench.add_child(_bench_label("卡匣工作枱　單據 %d　（按 C 關閉）" % jax.receipts, 12))
+	bench.add_child(_bench_label("先點下面背包嘅配件，再按「裝上」。［Q］係拆場配件，［衝］係滑板衝刺配件。", 9))
 	for cart in jax.slots:
 		for i in jax.slots[cart].size():
 			var it: Variant = jax.slots[cart][i]
-			var b := _bench_button("［%s］%s %s：%s" % [CART_TAGS[cart], CART_NAMES[cart], "AB"[i], _item_line(it) if it != null else "（空）"], _on_slot.bind(cart, i))
+			var b := _bench_button("［%s］%s　槽 %s：%s" % [CART_TAGS[cart], CART_NAMES[cart], "AB"[i], _item_line(it) if it != null else "（空）"], _on_slot.bind(cart, i))
 			if it != null:
 				b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
 			bench.add_child(b)

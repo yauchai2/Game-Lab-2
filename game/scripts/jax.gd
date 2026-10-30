@@ -39,6 +39,11 @@ var dash_extra := 0
 var dash_extra_time := 0.0
 var dash_hit: Array = []
 var trail_accum := 0.0
+var attack_timer := 0.0
+var attack_swing := 0.0
+@export var attack_cooldown := 0.55
+@export var attack_damage := 9
+@export var attack_radius := 2.2
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -120,6 +125,9 @@ func random_item() -> Dictionary:
 	elif roll >= RARITY_WEIGHTS[0]:
 		rarity = 1
 	var types: Array = ITEM_TYPES.keys()
+	if item_rolls == 2:
+		# 第 2 件必定係衝刺配件，方便新手發現第二張卡匣。
+		types = types.filter(func(t: String) -> bool: return ITEM_TYPES[t]["cart"] == "skate")
 	return make_item(types[randi() % types.size()], rarity)
 
 func should_drop_item(from_ranged: bool) -> bool:
@@ -310,7 +318,6 @@ func dash(toward: Variant = null) -> void:
 			dash_extra = 1
 			dash_extra_time = 0.8
 	dashed.emit()
-	skill_cast.emit("滑板衝刺", slot_names("skate"))
 	has_target = false
 	look_at(global_position + dash_dir, Vector3.UP)
 
@@ -443,25 +450,27 @@ func _spawn_zone(center: Vector3, radius: float, life: float, damage: int, color
 	get_parent().add_child(zone)
 	zone.global_position = Vector3(center.x, 0.04, center.z)
 
-func _spawn_shockwave(center: Vector3, radius: float) -> void:
+func _spawn_shockwave(center: Vector3, radius: float, color := Color("CC6657"), duration := 0.4) -> void:
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 0.9
 	torus.outer_radius = 1.0
 	ring.mesh = torus
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color("CC6657")
+	m.albedo_color = color
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ring.material_override = m
 	get_parent().add_child(ring)
 	ring.global_position = Vector3(center.x, 0.1, center.z)
 	ring.scale = Vector3(0.3, 0.3, 0.3)
 	var tween := ring.create_tween()
-	tween.tween_property(ring, "scale", Vector3(radius, 1.0, radius), 0.4)
+	tween.tween_property(ring, "scale", Vector3(radius, 1.0, radius), duration)
 	tween.tween_callback(ring.queue_free)
 
 func _physics_process(delta: float) -> void:
 	skill_timer = maxf(skill_timer - delta, 0.0)
+	attack_timer = maxf(attack_timer - delta, 0.0)
+	attack_swing = maxf(attack_swing - delta * 5.0, 0.0)
 	dash_timer = maxf(dash_timer - delta, 0.0)
 	iframe_left = maxf(iframe_left - delta, 0.0)
 	dash_extra_time = maxf(dash_extra_time - delta, 0.0)
@@ -499,6 +508,8 @@ func _physics_process(delta: float) -> void:
 		else:
 			move = dir.normalized() * speed
 			look_at(global_position + dir, Vector3.UP)
+	if windup_left < 0.0 and dash_left <= 0.0:
+		_auto_attack()
 	if windup_left < 0.0:
 		model.rotation.x = lerpf(model.rotation.x, -0.25 if dash_left > 0.0 else 0.0, 0.3)
 	velocity.x = move.x
@@ -508,12 +519,29 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_animate_limbs(delta, move.length() > 0.1 and dash_left <= 0.0)
 
+# 普通攻擊：附近有敵人就自動揮擊，細傷害、冇字卡，邊行邊打。
+func _auto_attack() -> void:
+	if attack_timer > 0.0:
+		return
+	var hit := 0
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		var d: Vector3 = enemy.global_position - global_position
+		d.y = 0.0
+		if d.length() <= attack_radius:
+			enemy.take_damage(attack_damage, global_position, 3.0)
+			hit += 1
+	if hit == 0:
+		return
+	attack_timer = attack_cooldown
+	attack_swing = 1.0
+	_spawn_shockwave(global_position, attack_radius, Color("E7DFC9"), 0.18)
+
 func _animate_limbs(delta: float, moving: bool) -> void:
 	var swing := 0.0
 	if moving:
 		anim_time += delta * speed * 1.8
 		swing = sin(anim_time) * 0.6
-	for pair in [[leg_l, swing], [leg_r, -swing], [arm_l, -swing * 0.8], [arm_r, swing * 0.8]]:
+	for pair in [[leg_l, swing], [leg_r, -swing], [arm_l, -swing * 0.8], [arm_r, swing * 0.8 - 1.6 * attack_swing]]:
 		var limb: Node3D = pair[0]
 		if limb:
 			limb.rotation.x = lerpf(limb.rotation.x, pair[1], 0.4)
