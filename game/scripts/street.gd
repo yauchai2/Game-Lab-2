@@ -13,6 +13,45 @@ const SKY := Color("52B7F0")
 
 var rng := RandomNumberGenerator.new()
 
+## 擋住鏡頭與玩家之間視線的建築與樹會變半透明。
+const FADE_ALPHA := 0.2
+const FADE_MARGIN := 0.8
+var occluders: Array = []
+
+func _register_occluder(node: Node3D, box: AABB) -> void:
+	occluders.append({"node": node, "box": box.grow(FADE_MARGIN), "alpha": 1.0, "mats": []})
+
+func _collect_mats(o: Dictionary) -> Array:
+	if o["mats"].is_empty():
+		for c in o["node"].find_children("*", "MeshInstance3D", true, false):
+			if c.material_override is StandardMaterial3D:
+				o["mats"].append(c.material_override)
+	return o["mats"]
+
+func _set_alpha(o: Dictionary, a: float) -> void:
+	var was: float = o["alpha"]
+	o["alpha"] = a
+	for m: StandardMaterial3D in _collect_mats(o):
+		if a < 0.999:
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.albedo_color.a = a
+		elif was < 0.999:
+			m.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			m.albedo_color.a = 1.0
+
+func _process(delta: float) -> void:
+	var cam := get_viewport().get_camera_3d()
+	var player := get_tree().get_first_node_in_group("player")
+	if cam == null or player == null:
+		return
+	var a := cam.global_position
+	var b: Vector3 = player.global_position + Vector3(0, 1.0, 0)
+	for o in occluders:
+		var target := FADE_ALPHA if (o["box"] as AABB).intersects_segment(a, b) != null else 1.0
+		var cur: float = o["alpha"]
+		if not is_equal_approx(cur, target):
+			_set_alpha(o, move_toward(cur, target, delta * 4.0))
+
 func _ready() -> void:
 	rng.seed = 7
 	_setup_environment()
@@ -26,7 +65,7 @@ func _mat(color: Color) -> StandardMaterial3D:
 	m.roughness = 1.0
 	return m
 
-func _box(pos: Vector3, size: Vector3, color: Color, collide := false) -> Node3D:
+func _box(pos: Vector3, size: Vector3, color: Color, collide := false, parent: Node = null) -> Node3D:
 	var node: Node3D
 	if collide:
 		node = StaticBody3D.new()
@@ -44,7 +83,7 @@ func _box(pos: Vector3, size: Vector3, color: Color, collide := false) -> Node3D
 	mi.material_override = _mat(color)
 	node.add_child(mi)
 	node.position = pos
-	add_child(node)
+	(parent if parent != null else self).add_child(node)
 	return node
 
 func _setup_environment() -> void:
@@ -73,7 +112,10 @@ func _build_ground() -> void:
 		_box(Vector3(10.0, 0.02, i * 1.1), Vector3(3.0, 0.03, 0.55), CHALK)
 
 func _facade(pos: Vector3, size: Vector3, color: Color, face_dir: Vector3) -> void:
-	_box(pos, size, color, true)
+	var group := Node3D.new()
+	add_child(group)
+	_register_occluder(group, AABB(pos - size / 2.0, size))
+	_box(pos, size, color, true, group)
 	# windows on the visible face
 	var cols := maxi(int(size.x / 2.2) if absf(face_dir.z) > 0.5 else int(size.z / 2.2), 1)
 	var rows := maxi(int((size.y - 3.0) / 2.6), 1)
@@ -89,13 +131,13 @@ func _facade(pos: Vector3, size: Vector3, color: Color, face_dir: Vector3) -> vo
 			else:
 				win_pos.z += along * size.z
 				win_size = Vector3(0.08, 1.3, 1.2)
-			_box(win_pos, win_size, NAVY)
+			_box(win_pos, win_size, NAVY, false, group)
 	# shop awning on the ground floor
 	var awning_color: Color = BUILDING_COLORS[rng.randi() % BUILDING_COLORS.size()]
 	if absf(face_dir.z) > 0.5:
-		_box(pos - Vector3(0, size.y / 2.0 - 2.6, 0) + face_dir * (size.z / 2.0 + 0.5), Vector3(size.x * 0.8, 0.25, 1.2), awning_color)
+		_box(pos - Vector3(0, size.y / 2.0 - 2.6, 0) + face_dir * (size.z / 2.0 + 0.5), Vector3(size.x * 0.8, 0.25, 1.2), awning_color, false, group)
 	else:
-		_box(pos - Vector3(0, size.y / 2.0 - 2.6, 0) + face_dir * (size.x / 2.0 + 0.5), Vector3(1.2, 0.25, size.z * 0.8), awning_color)
+		_box(pos - Vector3(0, size.y / 2.0 - 2.6, 0) + face_dir * (size.x / 2.0 + 0.5), Vector3(1.2, 0.25, size.z * 0.8), awning_color, false, group)
 
 func _build_buildings() -> void:
 	# back row (z-), seen from the camera
@@ -123,10 +165,13 @@ func _build_props() -> void:
 		_box(p + Vector3(0, 5.1, 0), Vector3(1.0, 0.3, 0.5), Color("D6D573"))
 	# trees
 	for p in [Vector3(-6, 0, -15.5), Vector3(5, 0, -15.5), Vector3(-19, 0, 6), Vector3(19, 0, -6)]:
-		_box(p + Vector3(0, 1.0, 0), Vector3(0.4, 2.0, 0.4), Color("7A5A44"), true)
-		var crown := _box(p + Vector3(0, 3.0, 0), Vector3(2.4, 2.2, 2.4), Color("35676B"))
+		var tree := Node3D.new()
+		add_child(tree)
+		_register_occluder(tree, AABB(p + Vector3(-1.2, 0.0, -1.2), Vector3(2.4, 5.0, 2.4)))
+		_box(p + Vector3(0, 1.0, 0), Vector3(0.4, 2.0, 0.4), Color("7A5A44"), true, tree)
+		var crown := _box(p + Vector3(0, 3.0, 0), Vector3(2.4, 2.2, 2.4), Color("35676B"), false, tree)
 		crown.rotation.y = 0.6
-		var top := _box(p + Vector3(0, 4.4, 0), Vector3(1.6, 1.2, 1.6), Color("75C7B0"))
+		var top := _box(p + Vector3(0, 4.4, 0), Vector3(1.6, 1.2, 1.6), Color("75C7B0"), false, tree)
 		top.rotation.y = 0.2
 	# parked yellow car
 	_box(Vector3(-11, 0.7, -11.5), Vector3(4.2, 1.1, 2.0), Color("D6D573"), true)
