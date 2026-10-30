@@ -3,8 +3,8 @@ extends CanvasLayer
 
 const FISHEYE := preload("res://game/scripts/fisheye.gd")
 const RARITY_COLORS := [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")]
-const LABEL_H := 13.0
-const PAD := 6.0
+const LABEL_H := 19.0
+const PAD := 9.0
 
 var labels := {}
 var hide_common := false
@@ -27,10 +27,10 @@ func _label_for(p: Node) -> Panel:
 	var l := Label.new()
 	l.name = "Text"
 	l.text = _name_of(p)
-	l.add_theme_font_size_override("font_size", 9)
+	l.add_theme_font_size_override("font_size", 13)
 	l.add_theme_color_override("font_color", col)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.position = Vector2(PAD, -1)
+	l.position = Vector2(PAD, -2)
 	panel.add_child(l)
 	var w := l.get_minimum_size().x + PAD * 2.0
 	panel.size = Vector2(w, LABEL_H)

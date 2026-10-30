@@ -17,6 +17,8 @@ func _ready() -> void:
 	stage.offset_right = 320.0
 	stage.offset_top = -180.0
 	stage.offset_bottom = 180.0
+	stage.pivot_offset = Vector2(320, 180)
+	stage.scale = Vector2(1.5, 1.5)
 	add_child(stage)
 	var bg := ColorRect.new()
 	bg.color = Color("20232E")

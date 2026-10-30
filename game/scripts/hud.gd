@@ -32,6 +32,9 @@ var boss_label := Label.new()
 @onready var jax: Node = get_parent().get_node("Jax")
 
 # 介面分區：低解像度畫面會隨視窗大小擴展，所以介面貼住畫面邊角（每區是 640×360 的座標系）。
+## 介面以 640×360 的座標設計，基準解像度是 960×540，所以整體放大 1.5 倍。
+const UI_SCALE := 1.5
+
 func _zone(ax: float, ay: float) -> Control:
 	var z := Control.new()
 	z.anchor_left = ax
@@ -42,6 +45,8 @@ func _zone(ax: float, ay: float) -> Control:
 	z.offset_right = 640.0 * (1.0 - ax)
 	z.offset_top = -360.0 * ay
 	z.offset_bottom = 360.0 * (1.0 - ay)
+	z.scale = Vector2(UI_SCALE, UI_SCALE)
+	z.pivot_offset = Vector2(640.0 * ax, 360.0 * ay)
 	z.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(z)
 	return z
