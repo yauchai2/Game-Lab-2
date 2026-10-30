@@ -21,19 +21,63 @@ const MUSIC_DB := -14.0
 
 var boss: Node = null
 var victory := false
+var boss_down := false
+var chapter: Node
 var music := AudioStreamPlayer.new()
 var music_track := ""
 var music_on := true
 
 @onready var jax: CharacterBody3D = $Jax
 
+# 場地邊界：看不見的牆，角色與敵人都不會走出街區。
+const BOUNDS_X := 22.0
+const BOUNDS_Z_NORTH := -21.0
+const BOUNDS_Z_SOUTH := 19.0
+
+func _add_boundary() -> void:
+	var walls := [
+		[Vector3(-BOUNDS_X - 1.0, 5.0, (BOUNDS_Z_NORTH + BOUNDS_Z_SOUTH) / 2.0), Vector3(2.0, 10.0, 80.0)],
+		[Vector3(BOUNDS_X + 1.0, 5.0, (BOUNDS_Z_NORTH + BOUNDS_Z_SOUTH) / 2.0), Vector3(2.0, 10.0, 80.0)],
+		[Vector3(0.0, 5.0, BOUNDS_Z_NORTH - 1.0), Vector3(80.0, 10.0, 2.0)],
+		[Vector3(0.0, 5.0, BOUNDS_Z_SOUTH + 1.0), Vector3(80.0, 10.0, 2.0)],
+	]
+	for w in walls:
+		var body := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = w[1]
+		shape.shape = box
+		body.add_child(shape)
+		add_child(body)
+		body.global_position = w[0]
+
+## 3D 畫面解析度由設定頁決定（預設約 1280 闊），介面則用視窗原生解析度畫，所以字永遠清晰。
+const GS := preload("res://game/scripts/game_settings.gd")
+const SETTINGS_MENU := preload("res://game/scripts/settings_menu.gd")
+
+func _fit_3d_resolution() -> void:
+	GS.fit_3d(get_tree())
+
 func _ready() -> void:
+	GS.apply(get_tree())
+	get_tree().root.size_changed.connect(_fit_3d_resolution)
+	_add_boundary()
 	jax.global_position = START_POS
 	for i in CAMPS.size():
 		_spawn_camp(i)
 	_spawn_boss()
+	chapter = CanvasLayer.new()
+	chapter.set_script(preload("res://game/scripts/chapter.gd"))
+	add_child(chapter)
+	var loot_labels := CanvasLayer.new()
+	loot_labels.set_script(preload("res://game/scripts/loot_labels.gd"))
+	add_child(loot_labels)
+	var fisheye := CanvasLayer.new()
+	fisheye.set_script(preload("res://game/scripts/fisheye.gd"))
+	add_child(fisheye)
 	add_child(music)
 	music.volume_db = MUSIC_DB
+	music.bus = "Music" if AudioServer.get_bus_index("Music") >= 0 else "Master"
 	_play_music("explore")
 
 # 背景音樂：探索一首，頭目醒來換另一首；按 M 開關。
@@ -54,6 +98,8 @@ func _process(_delta: float) -> void:
 		return
 	if boss != null and is_instance_valid(boss) and boss.awake:
 		_play_music("boss")
+	elif boss_down:
+		_play_music("explore")
 
 func _spawn_camp(index: int) -> void:
 	var camp: Dictionary = CAMPS[index]
@@ -67,6 +113,14 @@ func _spawn_camp(index: int) -> void:
 			enemy.ranged = true
 			enemy.max_hp = 25 + index * 5
 			enemy.base_color = Color("9B8ACC")
+			enemy.element = ["phys", "fire", "cold", "lightning"][index]
+		# 精英：第 3、4 個據點各有一隻大怪（血多、韌性高，要用技能重擊才打得破）
+		if index >= 2 and i == 0:
+			enemy.big = true
+			enemy.max_hp *= 3
+			enemy.attack_damage = int(enemy.attack_damage * 1.6)
+			enemy.base_color = Color("8C4F45")
+			enemy.scale = Vector3(1.35, 1.35, 1.35)
 		add_child(enemy)
 		var a := TAU * i / total
 		enemy.global_position = camp["pos"] + Vector3(cos(a), 0.05, sin(a)) * 2.0
@@ -77,7 +131,7 @@ func _spawn_boss() -> void:
 	add_child(boss)
 	boss.global_position = BOSS_POS
 	boss.defeated.connect(func() -> void:
-		victory = true
+		boss_down = true
 		boss = null
 		SFX.play(self, "victory"))
 
@@ -89,12 +143,13 @@ func camps_cleared() -> int:
 	return n
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE and not get_tree().paused and not jax.dead:
+		SETTINGS_MENU.open(self, true)
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
 		music_on = not music_on
 		if music_on and not victory and not jax.dead:
 			music.play()
 		else:
 			music.stop()
-	if victory and event is InputEventKey and event.pressed and event.keycode == KEY_R:
-		jax.save_progress(false)
-		get_tree().reload_current_scene()

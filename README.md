@@ -26,6 +26,7 @@
 - `docs/design/differentiation-ideas.md` — 同 PoE2 嘅差異化研究同點子（草案）
 - `docs/design/characters.md` — 四人角色設定（唯一來源，含背景、口吻、成長弧線）
 - `docs/design/game-plan.md` — 企劃草案、待決定問題、工具路線
+- `docs/design/poe2-research.md` — PoE 2 機制研究與本作優化計劃（待 Alan 確認優先次序）
 - `docs/guides/godot-setup.md` — 安裝 Godot、打開同玩 Jax 試玩版
 
 ## 規則

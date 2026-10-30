@@ -7,9 +7,9 @@ extends CharacterBody3D
 @export var skill_radius := 3.5
 @export var skill_damage := 25
 @export var max_hp := 120
-@export var dash_speed := 22.0
-@export var dash_time := 0.22
-@export var dash_cooldown := 1.0
+@export var dash_speed := 12.5
+@export var dash_time := 0.3
+@export var dash_cooldown := 0.25
 
 var target := Vector3.ZERO
 var has_target := false
@@ -28,22 +28,23 @@ signal slammed(hit_count: int)
 
 var receipts := 0
 var inventory: Array = []
-var slots := {"demolish": [null, null], "skate": [null, null]}
+var slots := {"demolish": [null, null], "skill_e": [null, null], "skill_r": [null, null], "skill_f": [null, null], "skate": [null, null], "weapon": [null], "head": [null], "body": [null], "feet": [null], "trinket": [null]}
+var base_speed := 6.0
+var gear_hp_bonus := 0
 var next_uid := 1
+const TALENTS := preload("res://game/scripts/talents.gd")
+const PAINTER := preload("res://game/scripts/painter.gd")
+var talents: Array = []
+var talent_bonus := 0
 var item_rolls := 0
 var dash_left := 0.0
 var dash_timer := 0.0
 var dash_dir := Vector3.ZERO
 var iframe_left := 0.0
-var dash_extra := 0
-var dash_extra_time := 0.0
 var dash_hit: Array = []
 var trail_accum := 0.0
 var attack_timer := 0.0
 var attack_swing := 0.0
-@export var attack_cooldown := 0.55
-@export var attack_damage := 9
-@export var attack_radius := 2.2
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -53,25 +54,89 @@ var attack_swing := 0.0
 
 const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
+const FLOATY := preload("res://game/scripts/floaty.gd")
+const FISHEYE := preload("res://game/scripts/fisheye.gd")
+const HITFX := preload("res://game/scripts/hitfx.gd")
 const SKYE_MODEL := preload("res://assets/characters/skye.glb")
 
 var char_id := "jax"
 var skill_name := "拆場"
+var skill_desc := "身邊範圍震擊"
 var skill_center := Vector3.ZERO
+## 技能列：Q 是角色招牌技，E／R／F 是通用技，達到等級解鎖。每個技能有自己的 2 個配件槽。
+const SKILL_CARTS := ["demolish", "skill_e", "skill_r", "skill_f"]
+const SKILL_KEYS := {"demolish": "Q", "skill_e": "E", "skill_r": "R", "skill_f": "F"}
+const EXTRA_SKILLS := {
+	"skill_e": {"name": "鐵鍊旋風", "desc": "在身邊揮舞鐵鍊，連續三下範圍打擊", "unlock": 2, "cd": 4.0},
+	"skill_r": {"name": "衝擊線", "desc": "朝滑鼠方向依序炸出一排爆炸", "unlock": 3, "cd": 5.0},
+	"skill_f": {"name": "油門全開", "desc": "短時間大幅加快移動與普通攻擊", "unlock": 4, "cd": 14.0},
+}
+var extra_timers := {"skill_e": 0.0, "skill_r": 0.0, "skill_f": 0.0}
+var buff_left := 0.0
+var hurt_flash := 0.0
+## 翻滾：資源制。2 段充能，0.3 秒無敵，每段回充 3 秒；用來救命，不是用來趕路。
+const ROLL_BASE_CHARGES := 2
+const ROLL_RECHARGE := 3.0
+var roll_charges := ROLL_BASE_CHARGES
+var roll_recharge := 0.0
+## 韌性：被連續打中會踉蹌（短硬直），之後有一段免疫期，不會被無限連鎖。
+const POISE_MAX := 50.0
+const STAGGER_TIME := 0.5
+const STAGGER_IMMUNE := 3.0
+var poise := POISE_MAX
+var poise_wait := 0.0
+var stagger_left := 0.0
+var stagger_immune := 0.0
+## 格擋：按住 Shift。剛按下的 0.25 秒內被打中＝完美格擋，完全擋下並反擊。
+const PERFECT_WINDOW := 0.25
+var guarding := false
+var guard_age := 999.0
+var guard_visual := MeshInstance3D.new()
+## 補給：汽水（即時回血）與便當（持續回血），擊殺敵人回充。
+const FLASKS := {
+	"soda": {"name": "汽水", "max": 3, "kills": 4, "desc": "即時回復 45% 生命"},
+	"bento": {"name": "便當", "max": 2, "kills": 6, "desc": "6 秒內回復 40% 生命"},
+}
+var flask_charges := {"soda": 3, "bento": 2}
+var flask_progress := {"soda": 0, "bento": 0}
+var bento_left := 0.0
+var regen_accum := 0.0
 
 func _ready() -> void:
+	var gbox := BoxMesh.new()
+	gbox.size = Vector3(1.7, 1.5, 0.08)
+	var gmat := StandardMaterial3D.new()
+	gmat.albedo_color = Color(0.6, 0.78, 0.95, 0.35)
+	gmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	guard_visual.mesh = gbox
+	guard_visual.material_override = gmat
+	guard_visual.position = Vector3(0, 0.9, -0.95)
+	guard_visual.visible = false
+	add_child(guard_visual)
 	add_to_group("player")
 	char_id = PROGRESS.character
 	if char_id == "skye":
 		_become_skye()
+	PAINTER.paint(model)
 	_load_progress()
+	if PROGRESS.data.is_empty():
+		_give_starter_weapon()
+	recalc_gear()
 	hp = max_hp
+
+# 起始武器：Jax 鐵管（近戰）、Skye 手槍（遠程）；之後可以隨意換。
+func _give_starter_weapon() -> void:
+	var w := make_item("pipe" if char_id == "jax" else "pistol", 0)
+	inventory.append(w)
+	slots["weapon"][0] = w
 
 # Skye：遠程射擊、惡作劇彈（投向滑鼠位置的範圍攻擊）。
 func _become_skye() -> void:
 	skill_name = "惡作劇彈"
+	skill_desc = "投向滑鼠位置的範圍爆炸"
 	max_hp = 90
-	speed = 6.4
+	base_speed = 6.4
 	skill_windup = 0.2
 	var fresh: Node3D = SKYE_MODEL.instantiate()
 	fresh.transform = model.transform
@@ -90,11 +155,13 @@ func save_progress(lose_half_receipts := true) -> void:
 	for cart in slots:
 		equipped[cart] = slots[cart].map(func(it: Variant) -> int: return -1 if it == null else it["uid"])
 	PROGRESS.data = {
-		"level": level, "xp": xp, "max_hp": max_hp, "skill_damage": skill_damage,
+		"level": level, "xp": xp, "max_hp": max_hp - gear_hp_bonus, "skill_damage": skill_damage,
 		"receipts": int(receipts * 0.5) if lose_half_receipts else receipts,
 		"inventory": inventory.duplicate(true), "equipped": equipped,
 		"next_uid": next_uid, "item_rolls": item_rolls,
+		"talents": talents.duplicate(), "talent_bonus": talent_bonus,
 	}
+	PROGRESS.write()
 
 func _load_progress() -> void:
 	var d: Dictionary = PROGRESS.data
@@ -103,14 +170,17 @@ func _load_progress() -> void:
 	level = d["level"]
 	xp = d["xp"]
 	max_hp = d["max_hp"]
+	gear_hp_bonus = 0
 	skill_damage = d["skill_damage"]
 	receipts = d["receipts"]
 	inventory = d["inventory"].duplicate(true)
 	next_uid = d["next_uid"]
 	item_rolls = d["item_rolls"]
+	talents = d.get("talents", []).duplicate()
+	talent_bonus = d.get("talent_bonus", 0)
 	for cart in slots:
 		for i in slots[cart].size():
-			var uid: int = d["equipped"][cart][i]
+			var uid: int = d["equipped"].get(cart, [-1, -1])[i]
 			slots[cart][i] = find_item(uid) if uid >= 0 else null
 
 func xp_to_next() -> int:
@@ -141,30 +211,65 @@ const ITEM_TYPES := {
 	"vacuum": {"name": "黑洞", "desc": "先吸住敵人再爆", "cart": "demolish"},
 	"chain": {"name": "連鎖反應", "desc": "擊殺敵人會爆炸", "cart": "demolish"},
 	"frenzy": {"name": "腎上腺素", "desc": "每次命中縮短冷卻", "cart": "demolish"},
-	"trail": {"name": "火焰軌跡", "desc": "衝刺後留下火焰", "cart": "skate"},
-	"grind": {"name": "磨擦衝撞", "desc": "衝刺穿過敵人造成傷害", "cart": "skate"},
-	"double": {"name": "雙重衝刺", "desc": "可以即刻再衝一次", "cart": "skate"},
-	"ghost": {"name": "殘影", "desc": "衝刺後無敵時間更長", "cart": "skate"},
+	"trail": {"name": "火焰軌跡", "desc": "翻滾後留下火焰", "cart": "skate"},
+	"grind": {"name": "磨擦衝撞", "desc": "翻滾穿過敵人造成傷害", "cart": "skate"},
+	"double": {"name": "雙重翻滾", "desc": "多一段翻滾充能", "cart": "skate"},
+	"ghost": {"name": "殘影", "desc": "翻滾後無敵時間更長", "cart": "skate"},
+	# 裝備：任何角色都可以穿。武器決定普通攻擊的方式，其餘提供屬性。
+	"pipe": {"name": "鐵管", "cart": "weapon", "kind": "melee", "dmg": 10, "cd": 0.55, "reach": 2.2},
+	"gloves": {"name": "拳套", "cart": "weapon", "kind": "melee", "dmg": 6, "cd": 0.32, "reach": 1.8},
+	"pistol": {"name": "手槍", "cart": "weapon", "kind": "ranged", "dmg": 7, "cd": 0.4, "reach": 9.0},
+	"rifle": {"name": "步槍", "cart": "weapon", "kind": "ranged", "dmg": 13, "cd": 0.75, "reach": 11.0},
+	"shotgun": {"name": "散彈槍", "cart": "weapon", "kind": "ranged", "dmg": 6, "cd": 0.9, "reach": 6.0, "pellets": 3},
+	"cap": {"name": "冷帽", "cart": "head", "base": {"hp": 15, "armor": 10}},
+	"goggles": {"name": "護目鏡", "cart": "head", "base": {"aspd": 10}},
+	"jacket": {"name": "工裝外套", "cart": "body", "base": {"hp": 30, "armor": 20}},
+	"vest": {"name": "帆布背心", "cart": "body", "base": {"sdmg": 8, "armor": 15}},
+	"sneakers": {"name": "厚底板鞋", "cart": "feet", "base": {"speed": 6, "rcold": 8}},
+	"springs": {"name": "彈跳鞋", "cart": "feet", "base": {"scd": 8}},
+	"ironchain": {"name": "粗鎖鏈", "cart": "trinket", "base": {"sdmg": 10, "armor": 12}},
+	"watch": {"name": "懷錶", "cart": "trinket", "base": {"scd": 8, "rfire": 8}},
+	"charm": {"name": "幸運符", "cart": "trinket", "base": {"atk": 10, "rlight": 8}},
 }
+const GEAR_SLOTS := ["weapon", "head", "body", "feet", "trinket"]
 const RARITY_NAMES := ["普通", "魔法", "稀有"]
 const RARITY_WEIGHTS := [70, 25, 5]
 const AFFIXES := {
 	"dmg": {"min": 8.0, "max": 18.0, "text": "傷害 +%d%%"},
 	"range": {"min": 0.3, "max": 0.8, "text": "範圍 +%.1f米"},
 	"cd": {"min": 5.0, "max": 12.0, "text": "冷卻 -%d%%"},
+	"hp": {"min": 8.0, "max": 20.0, "text": "生命 +%d"},
+	"speed": {"min": 3.0, "max": 8.0, "text": "移速 +%d%%"},
+	"atk": {"min": 8.0, "max": 20.0, "text": "普攻傷害 +%d%%"},
+	"aspd": {"min": 6.0, "max": 15.0, "text": "普攻速度 +%d%%"},
+	"wrange": {"min": 0.3, "max": 0.8, "text": "射程 +%.1f米"},
+	"sdmg": {"min": 6.0, "max": 14.0, "text": "技能傷害 +%d%%"},
+	"scd": {"min": 4.0, "max": 10.0, "text": "技能冷卻 -%d%%"},
+	"armor": {"min": 10.0, "max": 28.0, "text": "護甲 +%d"},
+	"rfire": {"min": 6.0, "max": 16.0, "text": "火焰抗性 +%d%%"},
+	"rcold": {"min": 6.0, "max": 16.0, "text": "冰凍抗性 +%d%%"},
+	"rlight": {"min": 6.0, "max": 16.0, "text": "閃電抗性 +%d%%"},
 }
-const INVENTORY_LIMIT := 10
+const POOL_ATTACH := ["dmg", "range", "cd"]
+const POOL_WEAPON := ["atk", "aspd", "wrange"]
+const POOL_GEAR := ["hp", "speed", "sdmg", "scd", "atk", "aspd", "armor", "rfire", "rcold", "rlight"]
+const INVENTORY_LIMIT := 12
 const REROLL_COST := 2
 const UPGRADE_COSTS := [3, 6]
 
 func _roll_affix(kind: String) -> Dictionary:
 	var def: Dictionary = AFFIXES[kind]
 	var v := randf_range(def["min"], def["max"])
-	v = snappedf(v, 0.1) if kind == "range" else float(roundi(v))
+	v = snappedf(v, 0.1) if kind in ["range", "wrange"] else float(roundi(v))
 	return {"kind": kind, "value": v}
 
-func _roll_affixes(count: int) -> Array:
-	var kinds: Array = AFFIXES.keys()
+func is_gear(type: String) -> bool:
+	return ITEM_TYPES[type]["cart"] in GEAR_SLOTS
+
+func _roll_affixes(type: String, count: int) -> Array:
+	var kinds: Array = POOL_ATTACH.duplicate()
+	if is_gear(type):
+		kinds = (POOL_WEAPON if ITEM_TYPES[type]["cart"] == "weapon" else POOL_GEAR).duplicate()
 	kinds.shuffle()
 	var out: Array = []
 	for i in count:
@@ -172,7 +277,7 @@ func _roll_affixes(count: int) -> Array:
 	return out
 
 func make_item(type: String, rarity: int) -> Dictionary:
-	var item := {"uid": next_uid, "type": type, "rarity": rarity, "affixes": _roll_affixes(rarity)}
+	var item := {"uid": next_uid, "type": type, "rarity": rarity, "affixes": _roll_affixes(type, rarity)}
 	next_uid += 1
 	return item
 
@@ -185,8 +290,11 @@ func random_item() -> Dictionary:
 		rarity = 1
 	var types: Array = ITEM_TYPES.keys()
 	if item_rolls == 2:
-		# 第 2 件必定是衝刺配件，方便新手發現第二張卡匣。
+		# 第 2 件必定是翻滾配件，第 3 件必定是裝備，方便新手發現各系統。
 		types = types.filter(func(t: String) -> bool: return ITEM_TYPES[t]["cart"] == "skate")
+	else:
+		var want_gear := item_rolls == 3 or (item_rolls != 2 and randf() < 0.4)
+		types = types.filter(func(t: String) -> bool: return is_gear(t) == want_gear)
 	return make_item(types[randi() % types.size()], rarity)
 
 func should_drop_item(from_ranged: bool) -> bool:
@@ -200,6 +308,14 @@ func item_name(item: Dictionary) -> String:
 
 func item_affix_text(item: Dictionary) -> String:
 	var parts: Array[String] = []
+	var def: Dictionary = ITEM_TYPES[item["type"]]
+	if def["cart"] == "weapon":
+		var w := weapon_stats_of(item)
+		parts.append("%s・傷害 %d・%.2f秒" % ["近戰" if def["kind"] == "melee" else "遠程", roundi(w["dmg"]), w["cd"]])
+	elif def.has("base"):
+		for k in def["base"]:
+			var v: float = def["base"][k] * item_power(item)
+			parts.append(AFFIXES[k]["text"] % (v if k == "wrange" else float(roundi(v))))
 	for a in item["affixes"]:
 		parts.append(AFFIXES[a["kind"]]["text"] % a["value"])
 	return ", ".join(parts)
@@ -222,15 +338,102 @@ func slot_info(uid: int) -> Dictionary:
 				return {"cart": cart, "idx": i}
 	return {}
 
-func item_in_slots(type: String) -> Variant:
+func item_in_slots(type: String, only_cart := "") -> Variant:
 	for cart in slots:
+		if only_cart != "" and cart != only_cart:
+			continue
 		for it in slots[cart]:
 			if it != null and it["type"] == type:
 				return it
 	return null
 
+# 裝備提供嘅屬性總和（基礎屬性＋詞綴）。
+func gear_total(kind: String) -> float:
+	var total := 0.0
+	for slot in GEAR_SLOTS:
+		var it: Variant = slots[slot][0]
+		if it == null:
+			continue
+		var def: Dictionary = ITEM_TYPES[it["type"]]
+		if def.has("base") and def["base"].has(kind):
+			total += def["base"][kind] * item_power(it)
+		for a in it["affixes"]:
+			if a["kind"] == kind:
+				total += a["value"]
+	return total + talent_total(kind)
+
+# --- 天賦 ---
+
+func talent_total(kind: String) -> float:
+	var total := 0.0
+	for id in talents:
+		var n: Dictionary = TALENTS.info(id)
+		if n["stat"] == kind:
+			total += n["value"]
+	return total
+
+func talent_points_total() -> int:
+	return (level - 1) + talent_bonus
+
+func talent_points_free() -> int:
+	return talent_points_total() - talents.size()
+
+func can_alloc(id: String) -> bool:
+	if talents.has(id) or talent_points_free() <= 0:
+		return false
+	var p: String = TALENTS.parent_of(id)
+	return p == "" or talents.has(p)
+
+func alloc_talent(id: String) -> bool:
+	if not can_alloc(id):
+		return false
+	talents.append(id)
+	recalc_gear()
+	return true
+
+func respec_talents() -> bool:
+	var cost: int = TALENTS.respec_cost(level)
+	if talents.is_empty() or receipts < cost:
+		return false
+	receipts -= cost
+	talents.clear()
+	recalc_gear()
+	return true
+
+func poise_cap() -> float:
+	return POISE_MAX + talent_total("poise")
+
+func roll_recharge_time() -> float:
+	return ROLL_RECHARGE * (1.0 - clampf((affix_total("cd", "skate") + talent_total("roll_cd")) / 100.0, 0.0, 0.8))
+
+func weapon_stats_of(item: Variant) -> Dictionary:
+	var s := {"kind": "melee", "dmg": 5.0, "cd": 0.6, "reach": 1.6, "pellets": 1}
+	if item != null:
+		var d: Dictionary = ITEM_TYPES[item["type"]]
+		s = {"kind": d["kind"], "dmg": d["dmg"] * item_power(item), "cd": d["cd"], "reach": d["reach"], "pellets": d.get("pellets", 1)}
+	return s
+
+# 目前武器（含裝備詞綴、等級加成）。
+func weapon_stats() -> Dictionary:
+	var s := weapon_stats_of(slots["weapon"][0])
+	s["dmg"] *= (1.0 + gear_total("atk") / 100.0) * (1.0 + 0.04 * (level - 1))
+	s["cd"] /= 1.0 + gear_total("aspd") / 100.0
+	s["reach"] += gear_total("wrange")
+	return s
+
+func recalc_gear() -> void:
+	var bonus := roundi(gear_total("hp"))
+	max_hp += bonus - gear_hp_bonus
+	gear_hp_bonus = bonus
+	hp = mini(hp, max_hp)
+	speed = base_speed * (1.0 + gear_total("speed") / 100.0)
+
 func affix_total(kind: String, cart: String) -> float:
 	var total := 0.0
+	if kind == "dmg":
+		total += gear_total("sdmg")
+	elif kind == "cd":
+		total += gear_total("scd")
 	for it in slots[cart]:
 		if it != null:
 			for a in it["affixes"]:
@@ -245,8 +448,15 @@ func slot_names(cart: String) -> String:
 			names.append(item_name(it).to_upper())
 	return " + ".join(names)
 
+# 已裝上嘅裝備同技能配件不佔背包格，背包只計算未裝上的。
+func bag_items() -> Array:
+	return inventory.filter(func(it: Dictionary) -> bool: return slot_info(it["uid"]).is_empty())
+
+func bag_count() -> int:
+	return bag_items().size()
+
 func add_item(item: Dictionary) -> bool:
-	if inventory.size() >= INVENTORY_LIMIT:
+	if bag_count() >= INVENTORY_LIMIT:
 		flash_text = "背包已滿"
 		levelup_flash = 1.0
 		return false
@@ -256,21 +466,36 @@ func add_item(item: Dictionary) -> bool:
 	return true
 
 # Bench actions return an empty string on success, or a message for the player.
-func toggle_equip(uid: int) -> String:
+func toggle_equip(uid: int, skill_target := "") -> String:
 	var info := slot_info(uid)
 	if not info.is_empty():
+		if bag_count() >= INVENTORY_LIMIT:
+			return "背包已滿，先騰出空位才能拆下。"
 		slots[info["cart"]][info["idx"]] = null
 		SFX.play(self, "ui_click", -6.0)
+		recalc_gear()
 		return ""
 	var item: Variant = find_item(uid)
 	if item == null:
 		return ""
 	var cart: String = ITEM_TYPES[item["type"]]["cart"]
-	var free: int = slots[cart].find(null)
-	if free < 0:
-		return "此卡匣兩個槽已滿，請先拆下一個。"
-	slots[cart][free] = item
-	return ""
+	if cart in GEAR_SLOTS:
+		slots[cart][0] = item
+		recalc_gear()
+		SFX.play(self, "ui_click", -6.0)
+		return ""
+	# 技能配件：優先裝進指定的技能，否則裝進第一個有空槽的已解鎖技能。
+	var order: Array = SKILL_CARTS if cart == "demolish" else [cart]
+	if cart == "demolish" and skill_target in SKILL_CARTS:
+		order = [skill_target]
+	for c in order:
+		if not skill_unlocked(c):
+			continue
+		var free: int = slots[c].find(null)
+		if free >= 0:
+			slots[c][free] = item
+			return ""
+	return "選定的技能兩個槽已滿，請先拆下一個。" if order.size() == 1 else "所有已解鎖技能的槽都滿了。"
 
 func reroll_item(uid: int) -> String:
 	var item: Variant = find_item(uid)
@@ -279,7 +504,8 @@ func reroll_item(uid: int) -> String:
 	if receipts < REROLL_COST:
 		return "單據不足。"
 	receipts -= REROLL_COST
-	item["affixes"] = _roll_affixes(item["rarity"])
+	item["affixes"] = _roll_affixes(item["type"], item["rarity"])
+	recalc_gear()
 	return ""
 
 func upgrade_item(uid: int) -> String:
@@ -293,7 +519,8 @@ func upgrade_item(uid: int) -> String:
 		return "單據不足。"
 	receipts -= cost
 	item["rarity"] += 1
-	item["affixes"] = _roll_affixes(item["rarity"])
+	item["affixes"] = _roll_affixes(item["type"], item["rarity"])
+	recalc_gear()
 	return ""
 
 func scrap_item(uid: int) -> String:
@@ -305,16 +532,68 @@ func scrap_item(uid: int) -> String:
 		slots[info["cart"]][info["idx"]] = null
 	inventory.erase(item)
 	receipts += 1
+	recalc_gear()
 	return ""
+
+func on_kill() -> void:
+	for k in FLASKS:
+		if flask_charges[k] < FLASKS[k]["max"]:
+			flask_progress[k] += 1
+			if flask_progress[k] >= maxf(1.0, FLASKS[k]["kills"] * (1.0 - talent_total("flask_fast") / 100.0)):
+				flask_progress[k] = 0
+				flask_charges[k] += 1
+
+func use_flask(kind: String) -> void:
+	if dead or flask_charges[kind] <= 0 or hp >= max_hp:
+		return
+	flask_charges[kind] -= 1
+	SFX.play(self, "pickup_hp", -4.0)
+	if kind == "soda":
+		heal(int(max_hp * (0.45 + talent_total("soda") / 100.0)))
+	else:
+		bento_left = 6.0
 
 func heal(amount: int) -> void:
 	hp = mini(hp + amount, max_hp)
 
-func take_damage(amount: int) -> void:
+## 防禦：物理傷害靠護甲（減傷 = 護甲／(護甲＋10×傷害)，上限 80%），元素傷害靠對應抗性（上限 75%）。
+const ELEMENT_RESIST := {"fire": "rfire", "cold": "rcold", "lightning": "rlight"}
+const ELEMENT_COLORS := {"phys": Color("CC6657"), "fire": Color("E0833A"), "cold": Color("75B7E0"), "lightning": Color("E6D26A")}
+
+func armor_value() -> float:
+	return gear_total("armor")
+
+func armor_reduction(amount: float) -> float:
+	var a := armor_value()
+	return clampf(a / (a + 10.0 * maxf(amount, 1.0)), 0.0, 0.8)
+
+func resist_of(element: String) -> float:
+	return clampf(gear_total(ELEMENT_RESIST[element]), 0.0, 75.0) if ELEMENT_RESIST.has(element) else 0.0
+
+func take_damage(amount: int, element := "phys", source: Node = null) -> void:
 	if dead or iframe_left > 0.0:
 		return
+	var raw := float(amount)
+	var blocked := false
+	if guarding and _guard_covers(source):
+		if guard_age <= PERFECT_WINDOW + talent_total("perfect"):
+			_perfect_block(source)
+			return
+		blocked = true
+	if element == "phys":
+		amount = maxi(1, roundi(amount * (1.0 - armor_reduction(amount))))
+	else:
+		amount = maxi(1, roundi(amount * (1.0 - resist_of(element) / 100.0)))
+	if blocked:
+		amount = maxi(1, roundi(amount * 0.3))
 	hp = maxi(hp - amount, 0)
-	SFX.play(self, "death" if hp == 0 else "hurt", -3.0)
+	var col: Color = ELEMENT_COLORS.get(element, Color("CC6657"))
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.0, 0), ("擋 " if blocked else "") + str(amount), Color("9AA3AD") if blocked else col, not blocked)
+	hurt_flash = 0.2 if blocked else 0.4
+	HITFX.sparks(get_parent(), global_position + Vector3(0, 1.0, 0), Color("9FB6E8") if blocked else col, 6 if blocked else 10, 1.0 if blocked else 1.2)
+	HITFX.shake(self, 0.12 if blocked else 0.3)
+	SFX.play(self, "death" if hp == 0 else ("hit" if blocked else "hurt"), -3.0)
+	_take_poise(raw * (0.4 if blocked else 1.0))
 	if hp == 0:
 		dead = true
 		save_progress()
@@ -322,26 +601,87 @@ func take_damage(amount: int) -> void:
 		windup_left = -1.0
 		model.rotation.x = -1.4
 
+# 韌性：累積到 0 就踉蹌一下（短硬直），之後 3 秒內不會再被打到踉蹌。
+func _take_poise(amount: float) -> void:
+	poise_wait = 1.5
+	if stagger_immune > 0.0 or stagger_left > 0.0:
+		return
+	poise -= amount
+	if poise <= 0.0:
+		poise = poise_cap()
+		stagger_left = STAGGER_TIME
+		stagger_immune = STAGGER_TIME + STAGGER_IMMUNE + talent_total("stagger_immune")
+		windup_left = -1.0
+		FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.6, 0), "踉蹌", Color("E6D26A"), true)
+
+# 格擋只擋前方；沒有來源（例如飛彈）一律擋得到。
+func _guard_covers(source: Node) -> bool:
+	if source == null or not (source is Node3D):
+		return true
+	var to: Vector3 = (source as Node3D).global_position - global_position
+	to.y = 0.0
+	if to.length() < 0.01:
+		return true
+	return (-global_transform.basis.z).angle_to(to.normalized()) <= deg_to_rad(80.0)
+
+func _perfect_block(source: Node) -> void:
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.4, 0), "完美格擋", Color("E6D26A"), true)
+	HITFX.sparks(get_parent(), global_position + Vector3(0, 1.2, 0) - global_transform.basis.z * 0.8, Color("E6D26A"), 16, 1.6)
+	HITFX.shake(self, 0.2)
+	HITFX.hit_stop(get_tree(), 0.06)
+	SFX.play(self, "slam", -4.0)
+	if source != null and is_instance_valid(source) and source.has_method("take_damage"):
+		source.take_damage(int(skill_damage * 0.6), global_position, 8.0, true)
+		if source.has_method("poise_damage"):
+			source.poise_damage(60.0)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if dead:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_R:
 			get_tree().reload_current_scene()
 		return
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			var p: Variant = _pick_point(event.position)
-			if p != null:
-				target = p
-				has_target = true
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
 			use_skill()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_Q:
 			use_skill()
+		elif event.keycode == KEY_E:
+			use_extra("skill_e")
+		elif event.keycode == KEY_R:
+			use_extra("skill_r")
+		elif event.keycode == KEY_F:
+			use_extra("skill_f")
+		elif event.keycode == KEY_1:
+			use_flask("soda")
+		elif event.keycode == KEY_2:
+			use_flask("bento")
 		elif event.keycode == KEY_SPACE:
-			dash(_pick_point(get_viewport().get_mouse_position()))
+			# 有按方向鍵就朝該方向翻滾，否則朝滑鼠位置。
+			var wasd := _move_input()
+			if wasd != Vector3.ZERO:
+				dash(global_position + wasd)
+			else:
+				dash(_pick_point(get_viewport().get_mouse_position()))
+
+# WASD（或方向鍵）移動：W＝畫面上方（鏡頭斜 45 度，所以世界方向跟鏡頭轉）。
+func _move_input() -> Vector3:
+	var v := Vector3.ZERO
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
+		v.z -= 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		v.z += 1.0
+	if Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT):
+		v.x -= 1.0
+	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
+		v.x += 1.0
+	var cam := get_viewport().get_camera_3d()
+	if cam:
+		v = Basis(Vector3.UP, cam.global_rotation.y) * v
+	return v.normalized()
 
 func _pick_point(screen_pos: Vector2) -> Variant:
+	screen_pos = FISHEYE.warp_pos(screen_pos, get_viewport().get_visible_rect().size)
 	var camera := get_viewport().get_camera_3d()
 	var from := camera.project_ray_origin(screen_pos)
 	var to := from + camera.project_ray_normal(screen_pos) * 100.0
@@ -352,10 +692,7 @@ func _pick_point(screen_pos: Vector2) -> Variant:
 
 # Skateboard dash: a quick burst toward the cursor, invulnerable while it lasts.
 func dash(toward: Variant = null) -> void:
-	if dead or windup_left >= 0.0 or dash_left > 0.0:
-		return
-	var extra_ok := dash_extra > 0 and dash_extra_time > 0.0
-	if dash_timer > 0.0 and not extra_ok:
+	if dead or windup_left >= 0.0 or dash_left > 0.0 or roll_charges <= 0 or dash_timer > 0.0:
 		return
 	var dir := -global_transform.basis.z
 	if toward != null:
@@ -366,19 +703,17 @@ func dash(toward: Variant = null) -> void:
 	dir.y = 0.0
 	dash_dir = dir.normalized()
 	dash_left = dash_time + affix_total("range", "skate") / dash_speed
-	iframe_left = dash_left
+	iframe_left = maxf(dash_left, 0.3)
 	var ghost: Variant = item_in_slots("ghost")
 	if ghost != null:
-		iframe_left += 0.5 * item_power(ghost)
+		iframe_left += 0.4 * item_power(ghost)
 	dash_hit.clear()
 	trail_accum = 0.0
-	if extra_ok:
-		dash_extra -= 1
-	else:
-		dash_timer = dash_cooldown * (1.0 - affix_total("cd", "skate") / 100.0)
-		if item_in_slots("double") != null:
-			dash_extra = 1
-			dash_extra_time = 0.8
+	if roll_charges >= roll_max():
+		roll_recharge = roll_recharge_time()
+	roll_charges -= 1
+	dash_timer = dash_cooldown
+	stagger_left = 0.0
 	dashed.emit()
 	SFX.play(self, "dash", -4.0)
 	has_target = false
@@ -396,7 +731,7 @@ func _dash_effects(delta: float) -> void:
 			if d.length() < 1.3:
 				dash_hit.append(enemy)
 				var dmg := skill_damage * 0.7 * item_power(grind) * (1.0 + affix_total("dmg", "skate") / 100.0)
-				enemy.take_damage(int(dmg), global_position, 9.0)
+				enemy.take_damage(int(dmg), global_position, 9.0, true)
 				slammed.emit(1)
 				_hit_stop(0.05)
 				var cam := get_viewport().get_camera_3d()
@@ -410,8 +745,59 @@ func _dash_effects(delta: float) -> void:
 			_spawn_zone(global_position, 1.2, 2.5, int(6 * item_power(trail) * (1.0 + affix_total("dmg", "skate") / 100.0)), Color("CC6657"))
 
 # 拆場: short windup, then a shockwave that hits every enemy in range.
+func roll_max() -> int:
+	var extra := 0
+	for it in slots["skate"]:
+		if it != null and it["type"] == "double":
+			extra += 1
+	return ROLL_BASE_CHARGES + extra + int(talent_total("roll_charge"))
+
+func skill_unlocked(cart: String) -> bool:
+	return not EXTRA_SKILLS.has(cart) or level >= EXTRA_SKILLS[cart]["unlock"]
+
+func skill_name_of(cart: String) -> String:
+	return skill_name if cart == "demolish" else EXTRA_SKILLS[cart]["name"]
+
+func skill_timer_of(cart: String) -> float:
+	return skill_timer if cart == "demolish" else extra_timers[cart]
+
+func _reduce_cd(cart: String, amount: float) -> void:
+	if cart == "demolish":
+		skill_timer = maxf(skill_timer - amount, 0.0)
+	else:
+		extra_timers[cart] = maxf(extra_timers[cart] - amount, 0.0)
+
+# E／R／F：通用技能，即時施放。
+func use_extra(cart: String) -> void:
+	var def: Dictionary = EXTRA_SKILLS[cart]
+	if dead or not skill_unlocked(cart) or extra_timers[cart] > 0.0 or dash_left > 0.0 or windup_left >= 0.0 or stagger_left > 0.0 or guarding:
+		return
+	var cd: float = def["cd"] * (1.0 - affix_total("cd", cart) / 100.0)
+	extra_timers[cart] = cd
+	match cart:
+		"skill_e":
+			SFX.play(self, "slam", -3.0)
+			_run_skill(cart, [global_position], 0.5, 3.0, 3, 0.3)
+		"skill_r":
+			var p: Variant = _pick_point(get_viewport().get_mouse_position())
+			var aim: Vector3 = p if p != null else global_position - global_transform.basis.z * 6.0
+			var dir := aim - global_position
+			dir.y = 0.0
+			dir = dir.normalized() if dir.length() > 0.1 else -global_transform.basis.z
+			look_at(global_position + dir, Vector3.UP)
+			var centers: Array = []
+			for i in 4:
+				centers.append(global_position + dir * (2.0 + 2.2 * i))
+			SFX.play(self, "slam", -3.0)
+			_run_skill(cart, centers, 0.9, 1.6, 1, 0.0)
+		"skill_f":
+			buff_left = 5.0 + affix_total("range", cart) * 3.0
+			SFX.play(self, "pickup_item", -2.0)
+			flash_text = "油門全開！"
+			levelup_flash = 1.2
+
 func use_skill() -> void:
-	if dead or skill_timer > 0.0 or windup_left >= 0.0 or dash_left > 0.0:
+	if dead or skill_timer > 0.0 or windup_left >= 0.0 or dash_left > 0.0 or stagger_left > 0.0 or guarding:
 		return
 	has_target = false
 	if char_id == "skye":
@@ -424,26 +810,31 @@ func use_skill() -> void:
 		skill_center = global_position + off
 		if off.length() > 0.1:
 			look_at(global_position + off, Vector3.UP)
-	windup_left = skill_windup + (0.2 if item_in_slots("heavy") != null else 0.0)
+	windup_left = skill_windup + (0.2 if item_in_slots("heavy", "demolish") != null else 0.0)
 	skill_cast.emit(skill_name, slot_names("demolish"))
 	SFX.play(self, "windup", -6.0)
 	skill_timer = skill_cooldown * (1.0 - affix_total("cd", "demolish") / 100.0)
 
 func _slam() -> void:
 	SFX.play(self, "slam")
-	var dmg := float(skill_damage) * (1.0 + affix_total("dmg", "demolish") / 100.0)
-	var radius := skill_radius + affix_total("range", "demolish")
-	var hits := 1
+	var center := skill_center if char_id == "skye" else global_position
+	_run_skill("demolish", [center], 1.0, skill_radius, 1, 0.35)
+
+# 通用的傷害技能：依該技能槽內的配件決定傷害、範圍、連擊、延遲與附加效果。
+func _run_skill(cart: String, centers: Array, dmg_mult: float, radius_base: float, hits_base: int, tick: float) -> void:
+	var dmg := float(skill_damage) * dmg_mult * (1.0 + affix_total("dmg", cart) / 100.0)
+	var radius := radius_base + affix_total("range", cart)
+	var hits := hits_base
 	var delay := 0.0
-	var opts := {"knock": 6.0, "vacuum": 0.0, "chain": 0.0, "frenzy": 0.0}
-	var heavy: Variant = item_in_slots("heavy")
-	var delayed: Variant = item_in_slots("delay")
-	var burst: Variant = item_in_slots("burst")
-	var linger: Variant = item_in_slots("linger")
-	var knock: Variant = item_in_slots("knock")
-	var vacuum: Variant = item_in_slots("vacuum")
-	var chain: Variant = item_in_slots("chain")
-	var frenzy: Variant = item_in_slots("frenzy")
+	var opts := {"knock": 6.0, "vacuum": 0.0, "chain": 0.0, "frenzy": 0.0, "cd_key": cart}
+	var heavy: Variant = item_in_slots("heavy", cart)
+	var delayed: Variant = item_in_slots("delay", cart)
+	var burst: Variant = item_in_slots("burst", cart)
+	var linger: Variant = item_in_slots("linger", cart)
+	var knock: Variant = item_in_slots("knock", cart)
+	var vacuum: Variant = item_in_slots("vacuum", cart)
+	var chain: Variant = item_in_slots("chain", cart)
+	var frenzy: Variant = item_in_slots("frenzy", cart)
 	if heavy != null:
 		dmg *= 1.0 + 0.5 * item_power(heavy)
 	if delayed != null:
@@ -451,8 +842,9 @@ func _slam() -> void:
 		radius += 1.0 * item_power(delayed)
 		delay = 0.8 if delayed["rarity"] < 2 else 0.6
 	if burst != null:
-		hits = 3 if burst["rarity"] == 2 else 2
-		dmg *= (0.6 if hits == 2 else 0.5) * item_power(burst)
+		var extra := 3 if burst["rarity"] == 2 else 2
+		hits = hits_base * extra
+		dmg *= (0.6 if extra == 2 else 0.5) * item_power(burst)
 	if knock != null:
 		opts["knock"] = 15.0 * item_power(knock)
 	if vacuum != null:
@@ -461,17 +853,18 @@ func _slam() -> void:
 		opts["chain"] = dmg * 0.5 * item_power(chain)
 	if frenzy != null:
 		opts["frenzy"] = 0.25 * item_power(frenzy)
-	var center := skill_center if char_id == "skye" else global_position
-	for h in hits:
-		var t := delay + h * 0.35
-		if t <= 0.0:
-			_impact(center, int(dmg), radius, opts)
-		else:
-			get_tree().create_timer(t, false).timeout.connect(_impact.bind(center, int(dmg), radius, opts))
-	if delay > 0.0:
-		_spawn_zone(center, radius, delay, 0, Color("D6D573"))
-	if linger != null:
-		_spawn_zone(center, 2.0, 3.0 + 0.5 * linger["rarity"], int(8 * item_power(linger)), Color("CC6657"))
+	for ci in centers.size():
+		var center: Vector3 = centers[ci]
+		for h in hits:
+			var t := delay + h * maxf(tick, 0.2 if hits > 1 else 0.0) + ci * 0.09
+			if t <= 0.0:
+				_impact(center, int(dmg), radius, opts)
+			else:
+				get_tree().create_timer(t, false).timeout.connect(_impact.bind(center, int(dmg), radius, opts))
+		if delay > 0.0:
+			_spawn_zone(center, radius, delay, 0, Color("D6D573"))
+		if linger != null:
+			_spawn_zone(center, 2.0, 3.0 + 0.5 * linger["rarity"], int(8 * item_power(linger)), Color("CC6657"))
 
 func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void:
 	var hit_count := 0
@@ -485,7 +878,7 @@ func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void
 			enemy.global_position = Vector3(center.x, enemy.global_position.y, center.z) + away.normalized() * 1.0
 			dist = 1.0
 		if dist <= radius:
-			enemy.take_damage(dmg, center, opts["knock"])
+			enemy.take_damage(dmg, center, opts["knock"], true)
 			hit_count += 1
 			if enemy.hp <= 0:
 				kills.append(enemy.global_position)
@@ -493,13 +886,14 @@ func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void
 		for pos in kills:
 			_explode(pos, 2.5, int(opts["chain"]))
 	if opts["frenzy"] > 0.0 and hit_count > 0:
-		skill_timer = maxf(skill_timer - opts["frenzy"] * hit_count, 0.0)
+		_reduce_cd(opts["cd_key"], opts["frenzy"] * hit_count)
 	if hit_count > 0:
 		slammed.emit(hit_count)
 		_hit_stop(0.07)
 		var cam := get_viewport().get_camera_3d()
 		if cam and cam.has_method("add_shake"):
 			cam.add_shake(minf(0.15 + hit_count * 0.05, 0.4))
+	HITFX.sparks(get_parent(), center + Vector3(0, 0.3, 0), Color("E6D26A"), 14 + mini(hit_count * 2, 14), 1.8)
 	_spawn_shockwave(center, radius)
 
 func _explode(pos: Vector3, radius: float, dmg: int) -> void:
@@ -507,7 +901,7 @@ func _explode(pos: Vector3, radius: float, dmg: int) -> void:
 		var d: Vector3 = enemy.global_position - pos
 		d.y = 0.0
 		if d.length() <= radius:
-			enemy.take_damage(dmg, pos, 6.0)
+			enemy.take_damage(dmg, pos, 6.0, true)
 	_spawn_shockwave(pos, radius)
 
 # Brief freeze on impact: the cheap trick that makes hits feel heavy.
@@ -544,13 +938,32 @@ func _spawn_shockwave(center: Vector3, radius: float, color := Color("CC6657"), 
 
 func _physics_process(delta: float) -> void:
 	skill_timer = maxf(skill_timer - delta, 0.0)
-	attack_timer = maxf(attack_timer - delta, 0.0)
+	for k in extra_timers:
+		extra_timers[k] = maxf(extra_timers[k] - delta, 0.0)
+	buff_left = maxf(buff_left - delta, 0.0)
+	hurt_flash = maxf(hurt_flash - delta, 0.0)
+	if bento_left > 0.0 and not dead:
+		bento_left -= delta
+		regen_accum += max_hp * 0.4 / 6.0 * delta
+		if regen_accum >= 1.0:
+			heal(int(regen_accum))
+			regen_accum -= int(regen_accum)
+	attack_timer = maxf(attack_timer - delta * (1.3 if buff_left > 0.0 else 1.0), 0.0)
 	attack_swing = maxf(attack_swing - delta * 5.0, 0.0)
 	dash_timer = maxf(dash_timer - delta, 0.0)
 	iframe_left = maxf(iframe_left - delta, 0.0)
-	dash_extra_time = maxf(dash_extra_time - delta, 0.0)
-	if dash_extra_time <= 0.0:
-		dash_extra = 0
+	var rmax := roll_max()
+	if roll_charges < rmax:
+		roll_recharge -= delta
+		if roll_recharge <= 0.0:
+			roll_charges += 1
+			roll_recharge = roll_recharge_time() if roll_charges < rmax else 0.0
+	roll_charges = mini(roll_charges, rmax)
+	poise_wait = maxf(poise_wait - delta, 0.0)
+	if poise_wait <= 0.0 and poise < poise_cap():
+		poise = minf(poise + 15.0 * delta, poise_cap())
+	stagger_left = maxf(stagger_left - delta, 0.0)
+	stagger_immune = maxf(stagger_immune - delta, 0.0)
 	levelup_flash = maxf(levelup_flash - delta, 0.0)
 	if dead:
 		velocity.x = 0.0
@@ -560,30 +973,37 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 	var move := Vector3.ZERO
-	# Hold the left mouse button to keep walking toward the cursor.
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and windup_left < 0.0 and dash_left <= 0.0:
-		var held: Variant = _pick_point(get_viewport().get_mouse_position())
-		if held != null:
-			target = held
-			has_target = true
+	var want_guard := Input.is_key_pressed(KEY_SHIFT) and dash_left <= 0.0 and windup_left < 0.0 and stagger_left <= 0.0
+	if want_guard and not guarding:
+		guard_age = 0.0
+	guarding = want_guard
+	guard_age = guard_age + delta if guarding else 999.0
+	guard_visual.visible = guarding
+	if guarding:
+		var gp: Variant = _pick_point(get_viewport().get_mouse_position())
+		if gp != null:
+			var gd: Vector3 = gp - global_position
+			gd.y = 0.0
+			if gd.length() > 0.2:
+				look_at(global_position + gd, Vector3.UP)
 	if dash_left > 0.0:
 		dash_left -= delta
 		move = dash_dir * dash_speed
 		_dash_effects(delta)
+	elif stagger_left > 0.0:
+		model.rotation.x = lerpf(model.rotation.x, 0.5, 0.4)
 	elif windup_left >= 0.0:
 		windup_left -= delta
 		model.rotation.x = lerpf(model.rotation.x, -0.4, 0.4)
 		if windup_left < 0.0:
 			_slam()
-	elif has_target:
-		var dir := target - global_position
-		dir.y = 0.0
-		if dir.length() < 0.2:
-			has_target = false
-		else:
-			move = dir.normalized() * speed
-			look_at(global_position + dir, Vector3.UP)
-	if windup_left < 0.0 and dash_left <= 0.0:
+	else:
+		var dir := _move_input()
+		if dir != Vector3.ZERO:
+			move = dir * speed * (1.4 if buff_left > 0.0 else 1.0) * (0.4 if guarding else 1.0)
+			if not guarding:
+				look_at(global_position + dir, Vector3.UP)
+	if windup_left < 0.0 and dash_left <= 0.0 and stagger_left <= 0.0 and not guarding:
 		_auto_attack()
 	if windup_left < 0.0:
 		model.rotation.x = lerpf(model.rotation.x, -0.25 if dash_left > 0.0 else 0.0, 0.3)
@@ -594,42 +1014,47 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_animate_limbs(delta, move.length() > 0.1 and dash_left <= 0.0)
 
-# 普通攻擊：附近有敵人就自動揮擊，傷害小、沒有字卡，邊走邊打。
+# 普通攻擊：由武器決定（近戰揮擊／遠程射擊），附近有敵人就自動出手，沒有字卡，邊走邊打。
 func _auto_attack() -> void:
 	if attack_timer > 0.0:
 		return
-	if char_id == "skye":
-		_shoot_nearest()
-		return
+	var w := weapon_stats()
+	if w["kind"] == "ranged":
+		_shoot_nearest(w)
+	else:
+		_melee_swing(w)
+
+func _melee_swing(w: Dictionary) -> void:
 	var hit := 0
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var d: Vector3 = enemy.global_position - global_position
 		d.y = 0.0
-		if d.length() <= attack_radius:
-			enemy.take_damage(attack_damage, global_position, 3.0)
+		if d.length() <= w["reach"]:
+			enemy.take_damage(roundi(w["dmg"]), global_position, 3.0)
 			hit += 1
 	if hit == 0:
 		return
-	attack_timer = attack_cooldown
+	attack_timer = w["cd"]
 	attack_swing = 1.0
 	SFX.play(self, "hit", -8.0, 0.12)
-	_spawn_shockwave(global_position, attack_radius, Color("E7DFC9"), 0.18)
+	_spawn_shockwave(global_position, w["reach"], Color("E7DFC9"), 0.18)
 
-func _shoot_nearest() -> void:
-	var best: Node3D = null
-	var best_d := 9.0
+func _shoot_nearest(w: Dictionary) -> void:
+	var targets: Array = []
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var d: float = enemy.global_position.distance_to(global_position)
-		if d < best_d:
-			best_d = d
-			best = enemy
-	if best == null:
+		if d <= w["reach"]:
+			targets.append([d, enemy])
+	if targets.is_empty():
 		return
-	attack_timer = 0.4
+	targets.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
+	attack_timer = w["cd"]
 	attack_swing = 1.0
-	best.take_damage(7, global_position, 2.0)
 	SFX.play(self, "shoot", -8.0, 0.1)
-	_tracer(global_position + Vector3(0, 0.9, 0), best.global_position + Vector3(0, 0.8, 0))
+	for i in mini(w["pellets"], targets.size()):
+		var enemy: Node3D = targets[i][1]
+		enemy.take_damage(roundi(w["dmg"]), global_position, 2.0)
+		_tracer(global_position + Vector3(0, 0.9, 0), enemy.global_position + Vector3(0, 0.8, 0))
 
 func _tracer(a: Vector3, b: Vector3) -> void:
 	var mi := MeshInstance3D.new()
@@ -644,6 +1069,8 @@ func _tracer(a: Vector3, b: Vector3) -> void:
 	mi.global_position = (a + b) / 2.0
 	mi.look_at(b, Vector3.UP)
 	get_tree().create_timer(0.07).timeout.connect(mi.queue_free)
+	HITFX.sparks(get_parent(), a, Color("F4E27A"), 4, 0.8)
+	HITFX.shake(self, 0.03)
 
 func _animate_limbs(delta: float, moving: bool) -> void:
 	var swing := 0.0

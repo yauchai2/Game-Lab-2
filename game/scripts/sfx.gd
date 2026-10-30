@@ -13,6 +13,8 @@ static func play(ctx: Node, sfx_name: String, volume_db := 0.0, pitch_var := 0.0
 	var p := AudioStreamPlayer.new()
 	p.stream = stream
 	p.volume_db = volume_db
+	if AudioServer.get_bus_index("SFX") >= 0:
+		p.bus = "SFX"
 	p.pitch_scale = 1.0 + randf_range(-pitch_var, pitch_var)
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
 	p.finished.connect(p.queue_free)
