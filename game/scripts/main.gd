@@ -21,6 +21,8 @@ const MUSIC_DB := -14.0
 
 var boss: Node = null
 var victory := false
+var boss_down := false
+var chapter: Node
 var music := AudioStreamPlayer.new()
 var music_track := ""
 var music_on := true
@@ -55,6 +57,9 @@ func _ready() -> void:
 	for i in CAMPS.size():
 		_spawn_camp(i)
 	_spawn_boss()
+	chapter = CanvasLayer.new()
+	chapter.set_script(preload("res://game/scripts/chapter.gd"))
+	add_child(chapter)
 	add_child(music)
 	music.volume_db = MUSIC_DB
 	_play_music("explore")
@@ -77,6 +82,8 @@ func _process(_delta: float) -> void:
 		return
 	if boss != null and is_instance_valid(boss) and boss.awake:
 		_play_music("boss")
+	elif boss_down:
+		_play_music("explore")
 
 func _spawn_camp(index: int) -> void:
 	var camp: Dictionary = CAMPS[index]
@@ -100,7 +107,7 @@ func _spawn_boss() -> void:
 	add_child(boss)
 	boss.global_position = BOSS_POS
 	boss.defeated.connect(func() -> void:
-		victory = true
+		boss_down = true
 		boss = null
 		SFX.play(self, "victory"))
 
@@ -118,6 +125,3 @@ func _unhandled_input(event: InputEvent) -> void:
 			music.play()
 		else:
 			music.stop()
-	if victory and event is InputEventKey and event.pressed and event.keycode == KEY_R:
-		jax.save_progress(false)
-		get_tree().reload_current_scene()

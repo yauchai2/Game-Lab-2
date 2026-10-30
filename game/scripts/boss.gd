@@ -1,5 +1,5 @@
 extends "res://game/scripts/enemy.gd"
-## 頭目「收數大佬」：追擊、預警重擊（紅圈）、半血召喚小弟。
+## 頭目「收據」：追擊、預警重擊（紅圈）、半血召喚小弟。
 
 signal defeated
 
@@ -9,7 +9,7 @@ const SLAM_RADIUS := 3.5
 const SLAM_DELAY := 1.0
 const SLAM_DAMAGE := 22
 
-var boss_name := "收數大佬"
+var boss_name := "TK-075「收據」"
 var slam_cooldown := 2.5
 var slam_pending := -1.0
 var slam_center := Vector3.ZERO

@@ -105,6 +105,7 @@ func save_progress(lose_half_receipts := true) -> void:
 		"inventory": inventory.duplicate(true), "equipped": equipped,
 		"next_uid": next_uid, "item_rolls": item_rolls,
 	}
+	PROGRESS.write()
 
 func _load_progress() -> void:
 	var d: Dictionary = PROGRESS.data

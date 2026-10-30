@@ -89,6 +89,6 @@ func _process(delta: float) -> void:
 
 func _pick(id: String) -> void:
 	PROGRESS.character = id
-	PROGRESS.data = {}
+	PROGRESS.reset()
 	SFX.play(self, "ui_click")
 	get_tree().change_scene_to_file("res://game/main.tscn")

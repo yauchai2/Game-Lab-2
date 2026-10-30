@@ -107,7 +107,7 @@ func _process(_delta: float) -> void:
 		boss_fill.size.x = 200.0 * float(b.hp) / float(b.max_hp)
 		boss_label.text = "頭目：" + b.boss_name
 	if get_parent().victory:
-		banner.text = "通關！　按 R 再玩一次"
+		banner.text = ""
 	elif jax.dead:
 		banner.text = "倒下了（保留等級與配件，單據減半）－ 按 R 重新開始"
 	elif jax.levelup_flash > 0.0 and not bench.visible:
@@ -119,7 +119,7 @@ func toggle_bench() -> void:
 	if bench.visible:
 		bench.close()
 		get_tree().paused = false
-	elif not jax.dead:
+	elif not jax.dead and not get_tree().paused:
 		move_child(bench, get_child_count() - 1)
 		bench.open()
 		get_tree().paused = true
