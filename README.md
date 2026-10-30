@@ -20,7 +20,9 @@
 
 - `docs/art/style-guide.md` — 美術風格（由兩條參考影片整理）
 - `docs/art/asset-spec.md` — 換模型／場景嘅資產規格
-- `docs/design/characters.md` — 四人角色設定（唯一來源）
+- `docs/design/world.md` — 世界觀（疊域、勢力、衝突、反社會基調）
+- `docs/design/first-district.md` — 第一區橋底里流程（開場、教學戰、頭目、結算選擇）
+- `docs/design/characters.md` — 四人角色設定（唯一來源，含背景、口吻、成長弧線）
 - `docs/design/game-plan.md` — 企劃草案、待決定問題、工具路線
 - `docs/guides/godot-setup.md` — 安裝 Godot、打開同玩 Jax 試玩版
 
