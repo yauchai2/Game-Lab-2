@@ -10,6 +10,9 @@ var zone_bc: Control
 var zone_br: Control
 var zone_c: Control
 var hurt_overlay := ColorRect.new()
+var poise_back := ColorRect.new()
+var poise_fill := ColorRect.new()
+var guard_label := Label.new()
 var break_back := ColorRect.new()
 var break_fill := ColorRect.new()
 var break_label := Label.new()
@@ -105,7 +108,15 @@ func _ready() -> void:
 	xp_fill.position = Vector2(9, 21)
 	xp_fill.size = Vector2(BAR_SIZE.x, 3)
 	add_child(xp_fill)
-	info.position = Vector2(8, 28)
+	poise_back.color = Color("292D3B")
+	poise_back.position = Vector2(8, 27)
+	poise_back.size = Vector2(BAR_SIZE.x + 2, 4)
+	add_child(poise_back)
+	poise_fill.color = Color("E6D26A")
+	poise_fill.position = Vector2(9, 28)
+	poise_fill.size = Vector2(BAR_SIZE.x, 2)
+	add_child(poise_fill)
+	info.position = Vector2(8, 34)
 	info.add_theme_font_size_override("font_size", 10)
 	add_child(info)
 	_build_skill_bar()
@@ -136,7 +147,7 @@ func _ready() -> void:
 	jax.dashed.connect(func() -> void:
 		if jax.slot_names("skate") != "":
 			lines.burst(1.0)
-			_show_card("滑板衝刺", jax.slot_names("skate")))
+			_show_card("滑板翻滾", jax.slot_names("skate")))
 	jax.slammed.connect(func(hits: int) -> void: lines.burst(clampf(0.5 + hits * 0.25, 0.5, 1.5)))
 	banner.position = Vector2(8, 150)
 	banner.add_theme_font_size_override("font_size", 20)
@@ -144,6 +155,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	hurt_overlay.color.a = jax.hurt_flash * 0.6
+	poise_fill.size.x = BAR_SIZE.x * clampf(jax.poise / jax.POISE_MAX, 0.0, 1.0)
+	poise_fill.color = Color("9FB6E8") if jax.stagger_immune > 0.0 else Color("E6D26A")
 	orb.ratio = float(jax.hp) / float(jax.max_hp)
 	orb.label_text = "%d" % jax.hp
 	orb.queue_redraw()
@@ -279,9 +292,10 @@ func _update_skill_bar() -> void:
 		if cart == "skill_f" and jax.buff_left > 0.0:
 			title = "%s %.1f" % [nm, jax.buff_left]
 		_set_box(cart, title, sub, remain, total, locked)
-	var dcd: float = jax.dash_timer
+	var rmax: int = jax.roll_max()
 	var dash_sub: String = jax.slot_names("skate")
-	_set_box("dash", "衝刺" + ("" if dcd <= 0.0 else " %.1f" % dcd), dash_sub if dash_sub != "" else "無配件", dcd, jax.dash_cooldown)
+	var rr: float = jax.roll_recharge if jax.roll_charges < rmax else 0.0
+	_set_box("dash", "翻滾 %d／%d" % [jax.roll_charges, rmax], ("%.1f 秒" % rr) if rr > 0.0 else (dash_sub if dash_sub != "" else "無配件"), 0.0 if jax.roll_charges > 0 else rr, jax.ROLL_RECHARGE)
 	var wi: Variant = jax.slots["weapon"][0]
 	_set_box("weapon", jax.item_name(wi) if wi != null else "空手", "近戰" if w["kind"] == "melee" else "遠程", 0.0, 1.0)
 

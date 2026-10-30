@@ -2,6 +2,7 @@ extends RefCounted
 ## 打擊感小工具：火花、頓幀、鏡頭震動。
 
 static var stopping := false
+static var last_stop := 0
 
 static func sparks(world: Node, pos: Vector3, color: Color, amount := 8, power := 1.0) -> void:
 	var p := CPUParticles3D.new()
@@ -29,8 +30,10 @@ static func sparks(world: Node, pos: Vector3, color: Color, amount := 8, power :
 	p.get_tree().create_timer(0.8).timeout.connect(p.queue_free)
 
 static func hit_stop(tree: SceneTree, duration: float) -> void:
-	if stopping:
+	var now := Time.get_ticks_msec()
+	if stopping or now - last_stop < 300:
 		return
+	last_stop = now
 	stopping = true
 	Engine.time_scale = 0.06
 	tree.create_timer(duration, true, false, true).timeout.connect(func() -> void:

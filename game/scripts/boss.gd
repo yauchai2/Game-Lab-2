@@ -30,6 +30,7 @@ func _ready() -> void:
 	attack_cooldown = 1.4
 	base_color = Color("CC6657")
 	show_bar = false
+	big = true
 	super._ready()
 	add_to_group("boss")
 	aggro_range = 10.0
@@ -66,7 +67,7 @@ func _physics_process(delta: float) -> void:
 				move = to.normalized() * speed
 			elif cooldown <= 0.0:
 				cooldown = attack_cooldown
-				player.take_damage(attack_damage)
+				player.take_damage(attack_damage, "phys", self)
 			slam_cooldown -= delta
 			if slam_cooldown <= 0.0:
 				_slam_start(player)
@@ -81,20 +82,21 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= gravity * delta
 	move_and_slide()
 
-func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) -> void:
+func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0, heavy_hit := false) -> void:
 	if hp <= 0:
 		return
 	if stun_left > 0.0:
 		amount = int(amount * STUN_BONUS)
-	elif awake:
-		break_value += amount
+	super.take_damage(amount, from_pos, knock, heavy_hit)
+
+func poise_damage(p: float) -> void:
+	if stun_left <= 0.0 and awake:
+		break_value += p
 		break_decay_wait = 2.0
 		if break_value >= BREAK_MAX:
 			break_value = 0.0
 			stun_left = STUN_TIME
-			SFX.play(self, "boss_warn", -2.0)
 			FLOATY.spawn(get_parent(), global_position + Vector3(0, 3.2, 0), "破防", Color("9FB6E8"), true)
-	super.take_damage(amount, from_pos, knock)
 
 func _slam_start(player: Node3D) -> void:
 	slam_cooldown = 3.5 if hp > max_hp * 0.5 else 2.5
@@ -110,7 +112,7 @@ func _slam_land(player: Node3D) -> void:
 	var d: Vector3 = player.global_position - slam_center
 	d.y = 0.0
 	if d.length() <= SLAM_RADIUS:
-		player.take_damage(SLAM_DAMAGE)
+		player.take_damage(SLAM_DAMAGE, "phys", self)
 	var cam := get_viewport().get_camera_3d()
 	if cam and cam.has_method("add_shake"):
 		cam.add_shake(0.25)

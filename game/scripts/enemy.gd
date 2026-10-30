@@ -25,6 +25,14 @@ const HITFX := preload("res://game/scripts/hitfx.gd")
 
 var show_bar := true
 var element := "phys"
+## 韌性：小怪被連打幾下就踉蹌（短硬直）；大怪（精英、頭目）只有重擊（技能、完美格擋反擊）才打得破。
+var big := false
+var poise_max := 24.0
+var poise := 24.0
+var poise_wait := 0.0
+var stagger_left := 0.0
+var stagger_immune := 0.0
+var bar_poise := MeshInstance3D.new()
 var bar_back := MeshInstance3D.new()
 var bar_fill := MeshInstance3D.new()
 
@@ -32,6 +40,9 @@ var bar_fill := MeshInstance3D.new()
 
 func _ready() -> void:
 	hp = max_hp
+	if big:
+		poise_max = maxf(poise_max, 90.0)
+	poise = poise_max
 	add_to_group("enemies")
 	if camp != "":
 		add_to_group(camp)
@@ -51,6 +62,20 @@ func _hit_react(frac: float) -> void:
 	var tw := create_tween()
 	tw.tween_property(mesh, "scale", base, 0.14)
 
+func poise_damage(p: float) -> void:
+	poise_wait = 2.0
+	if stagger_immune > 0.0 or stagger_left > 0.0 or hp <= 0:
+		return
+	poise -= p
+	if poise <= 0.0:
+		poise = poise_max
+		stagger_left = 2.2 if big else 0.5
+		stagger_immune = stagger_left + 2.5
+		cooldown = maxf(cooldown, 0.6)
+		FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.5, 0), "破防" if big else "踉蹌", Color("9FB6E8"), true)
+		HITFX.sparks(get_parent(), global_position + Vector3(0, 1.5, 0), Color("9FB6E8"), 10, 1.2)
+	_update_bar()
+
 func _bar_mesh(m: MeshInstance3D, color: Color, width: float) -> void:
 	var q := QuadMesh.new()
 	q.size = Vector2(width, 0.09)
@@ -68,27 +93,41 @@ func _make_bar() -> void:
 	_bar_mesh(bar_fill, Color("CC6657"), 0.8)
 	bar_back.position = Vector3(0, 2.0, 0)
 	bar_fill.position = Vector3(0, 2.0, 0.01)
+	_bar_mesh(bar_poise, Color("E6D26A"), 0.8)
+	(bar_poise.mesh as QuadMesh).size = Vector2(0.8, 0.04)
+	bar_poise.position = Vector3(0, 1.93, 0.01)
 	bar_back.visible = false
 	bar_fill.visible = false
+	bar_poise.visible = false
 	add_child(bar_back)
 	add_child(bar_fill)
+	add_child(bar_poise)
 
 func _update_bar() -> void:
 	var visible_bar := show_bar and hp > 0 and hp < max_hp
 	bar_back.visible = visible_bar
 	bar_fill.visible = visible_bar
+	bar_poise.visible = visible_bar
 	if visible_bar:
+		var pf := clampf(poise / poise_max, 0.001, 1.0)
+		bar_poise.scale.x = pf
+		bar_poise.position.x = -0.4 * (1.0 - pf)
 		var f := clampf(float(hp) / float(max_hp), 0.0, 1.0)
 		bar_fill.scale.x = maxf(f, 0.001)
 		bar_fill.position.x = -0.4 * (1.0 - f)
 
-func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) -> void:
+func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0, heavy_hit := false) -> void:
 	if hp <= 0:
 		return
 	hp -= amount
 	var frac := float(amount) / float(max_hp)
-	var heavy := frac >= 0.2
-	FLOATY.spawn(get_parent(), global_position + Vector3(0, 1.9, 0), str(amount), Color("E6D26A") if heavy else Color("F4F0E4"), heavy)
+	var big_hit := frac >= 0.2
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 1.9, 0), str(amount), Color("E6D26A") if big_hit else Color("F4F0E4"), big_hit)
+	if hp > 0:
+		var p := float(amount) * (2.0 if heavy_hit else 1.0)
+		if big:
+			p *= 0.6 if heavy_hit else 0.15
+		poise_damage(p)
 	_update_bar()
 	_hit_react(frac)
 	wake()
@@ -137,6 +176,21 @@ func _physics_process(delta: float) -> void:
 		return
 	cooldown = maxf(cooldown - delta, 0.0)
 	knockback = knockback.move_toward(Vector3.ZERO, 20.0 * delta)
+	stagger_immune = maxf(stagger_immune - delta, 0.0)
+	poise_wait = maxf(poise_wait - delta, 0.0)
+	if poise_wait <= 0.0 and poise < poise_max:
+		poise = minf(poise + poise_max * 0.3 * delta, poise_max)
+	if stagger_left > 0.0:
+		stagger_left -= delta
+		_material.albedo_color = Color("9FB6E8")
+		if stagger_left <= 0.0:
+			_material.albedo_color = base_color
+		velocity.x = knockback.x
+		velocity.z = knockback.z
+		if not is_on_floor():
+			velocity.y -= gravity * delta
+		move_and_slide()
+		return
 	var move := Vector3.ZERO
 	var player := get_tree().get_first_node_in_group("player")
 	if player and not player.dead:
@@ -155,7 +209,7 @@ func _physics_process(delta: float) -> void:
 			move = to.normalized() * speed
 		elif cooldown <= 0.0:
 			cooldown = attack_cooldown
-			player.take_damage(attack_damage)
+			player.take_damage(attack_damage, "phys", self)
 		if dist > 0.01:
 			look_at(global_position + to, Vector3.UP)
 	velocity.x = move.x + knockback.x

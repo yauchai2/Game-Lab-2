@@ -21,7 +21,7 @@ const SLOT_HINTS := {
 	"skill_e": "鐵鍊旋風（E）\n身邊連續三下範圍打擊。\n點選技能槽後再裝配件。",
 	"skill_r": "衝擊線（R）\n朝滑鼠方向炸出一排爆炸。\n點選技能槽後再裝配件。",
 	"skill_f": "油門全開（F）\n短時間加快移動與普攻。\n配件的冷卻與範圍詞綴有效。",
-	"skate": "衝刺卡匣槽\n裝上配件，改變衝刺的效果。",
+	"skate": "翻滾卡匣槽\n裝上配件，改變翻滾的效果。",
 }
 const TAGS := {"demolish": "技", "skate": "衝", "weapon": "武", "head": "頭", "body": "身", "feet": "腳", "trinket": "飾"}
 const DOLL_ORIGIN := Vector2(244, 30)
@@ -183,7 +183,7 @@ func _doll() -> void:
 	_label("普通攻擊：%s" % ("近戰" if w["kind"] == "melee" else "遠程"), o + Vector2(10, 106), 8, Color("8C8470"))
 
 func _cartridges() -> void:
-	# 技能列：Q／E／R／F 與衝刺，各 2 個配件槽。點技能槽＝指定配件裝進哪個技能。
+	# 技能列：Q／E／R／F 與翻滾，各 2 個配件槽。點技能槽＝指定配件裝進哪個技能。
 	var groups := ["demolish", "skill_e", "skill_r", "skill_f", "skate"]
 	for gi in groups.size():
 		var cart: String = groups[gi]
@@ -191,7 +191,7 @@ func _cartridges() -> void:
 		var y := 164 + (gi / 2) * 25
 		var locked: bool = not jax.skill_unlocked(cart) if cart != "skate" else false
 		var key: String = jax.SKILL_KEYS.get(cart, "空白")
-		var nm: String = jax.skill_name if cart == "demolish" else ("衝刺" if cart == "skate" else jax.EXTRA_SKILLS[cart]["name"])
+		var nm: String = jax.skill_name if cart == "demolish" else ("翻滾" if cart == "skate" else jax.EXTRA_SKILLS[cart]["name"])
 		var col := Color("75C7B0") if cart == target_cart else (Color("5E5848") if locked else Color("C9BC9A"))
 		_label("%s\n%s" % [key, nm.left(3)], Vector2(x, y - 1), 8, col)
 		if locked:
@@ -273,7 +273,7 @@ func _describe(item: Dictionary) -> String:
 			t += "%s\n" % ("近戰・自動揮擊身邊敵人" if def["kind"] == "melee" else ("遠程・自動射擊最近的 3 個敵人" if def.get("pellets", 1) > 1 else "遠程・自動射擊最近的敵人"))
 			t += "傷害 %d　間隔 %.2f 秒　射程 %.1f 米\n" % [roundi(w["dmg"]), w["cd"], w["reach"]]
 	else:
-		var cname: String = "技能配件" if cart == "demolish" else "滑板衝刺"
+		var cname: String = "技能配件" if cart == "demolish" else "滑板翻滾"
 		t += "[color=#9A927C]%s[/color]\n%s\n" % [cname, def["desc"]]
 	t += "[color=#5E5848]────────[/color]\n"
 	var any := false

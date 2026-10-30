@@ -44,7 +44,7 @@ func _ready() -> void:
 	var cont := _button("繼續", Vector2(270, y + 36))
 	cont.disabled = not PROGRESS.has_save()
 	cont.pressed.connect(_continue)
-	_text("WASD 移動　Q／右鍵 技能　空白鍵 衝刺　C 工作枱", Vector2(0, 318), 9, Color("BCC5D4"))
+	_text("WASD 移動　Q／右鍵 技能　空白鍵 翻滾　C 工作枱", Vector2(0, 318), 9, Color("BCC5D4"))
 
 func _text(t: String, pos: Vector2, font_px: int, color: Color) -> void:
 	var l := Label.new()

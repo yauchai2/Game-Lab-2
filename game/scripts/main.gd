@@ -104,6 +104,13 @@ func _spawn_camp(index: int) -> void:
 			enemy.max_hp = 25 + index * 5
 			enemy.base_color = Color("9B8ACC")
 			enemy.element = ["phys", "fire", "cold", "lightning"][index]
+		# 精英：第 3、4 個據點各有一隻大怪（血多、韌性高，要用技能重擊才打得破）
+		if index >= 2 and i == 0:
+			enemy.big = true
+			enemy.max_hp *= 3
+			enemy.attack_damage = int(enemy.attack_damage * 1.6)
+			enemy.base_color = Color("8C4F45")
+			enemy.scale = Vector3(1.35, 1.35, 1.35)
 		add_child(enemy)
 		var a := TAU * i / total
 		enemy.global_position = camp["pos"] + Vector3(cos(a), 0.05, sin(a)) * 2.0

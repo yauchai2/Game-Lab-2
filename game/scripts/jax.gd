@@ -7,9 +7,9 @@ extends CharacterBody3D
 @export var skill_radius := 3.5
 @export var skill_damage := 25
 @export var max_hp := 120
-@export var dash_speed := 22.0
-@export var dash_time := 0.22
-@export var dash_cooldown := 1.0
+@export var dash_speed := 12.5
+@export var dash_time := 0.3
+@export var dash_cooldown := 0.25
 
 var target := Vector3.ZERO
 var has_target := false
@@ -37,8 +37,6 @@ var dash_left := 0.0
 var dash_timer := 0.0
 var dash_dir := Vector3.ZERO
 var iframe_left := 0.0
-var dash_extra := 0
-var dash_extra_time := 0.0
 var dash_hit: Array = []
 var trail_accum := 0.0
 var attack_timer := 0.0
@@ -72,6 +70,24 @@ const EXTRA_SKILLS := {
 var extra_timers := {"skill_e": 0.0, "skill_r": 0.0, "skill_f": 0.0}
 var buff_left := 0.0
 var hurt_flash := 0.0
+## 翻滾：資源制。2 段充能，0.3 秒無敵，每段回充 3 秒；用來救命，不是用來趕路。
+const ROLL_BASE_CHARGES := 2
+const ROLL_RECHARGE := 3.0
+var roll_charges := ROLL_BASE_CHARGES
+var roll_recharge := 0.0
+## 韌性：被連續打中會踉蹌（短硬直），之後有一段免疫期，不會被無限連鎖。
+const POISE_MAX := 50.0
+const STAGGER_TIME := 0.5
+const STAGGER_IMMUNE := 3.0
+var poise := POISE_MAX
+var poise_wait := 0.0
+var stagger_left := 0.0
+var stagger_immune := 0.0
+## 格擋：按住 Shift。剛按下的 0.25 秒內被打中＝完美格擋，完全擋下並反擊。
+const PERFECT_WINDOW := 0.25
+var guarding := false
+var guard_age := 999.0
+var guard_visual := MeshInstance3D.new()
 ## 補給：汽水（即時回血）與便當（持續回血），擊殺敵人回充。
 const FLASKS := {
 	"soda": {"name": "汽水", "max": 3, "kills": 4, "desc": "即時回復 45% 生命"},
@@ -83,6 +99,17 @@ var bento_left := 0.0
 var regen_accum := 0.0
 
 func _ready() -> void:
+	var gbox := BoxMesh.new()
+	gbox.size = Vector3(1.7, 1.5, 0.08)
+	var gmat := StandardMaterial3D.new()
+	gmat.albedo_color = Color(0.6, 0.78, 0.95, 0.35)
+	gmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	guard_visual.mesh = gbox
+	guard_visual.material_override = gmat
+	guard_visual.position = Vector3(0, 0.9, -0.95)
+	guard_visual.visible = false
+	add_child(guard_visual)
 	add_to_group("player")
 	char_id = PROGRESS.character
 	if char_id == "skye":
@@ -176,10 +203,10 @@ const ITEM_TYPES := {
 	"vacuum": {"name": "黑洞", "desc": "先吸住敵人再爆", "cart": "demolish"},
 	"chain": {"name": "連鎖反應", "desc": "擊殺敵人會爆炸", "cart": "demolish"},
 	"frenzy": {"name": "腎上腺素", "desc": "每次命中縮短冷卻", "cart": "demolish"},
-	"trail": {"name": "火焰軌跡", "desc": "衝刺後留下火焰", "cart": "skate"},
-	"grind": {"name": "磨擦衝撞", "desc": "衝刺穿過敵人造成傷害", "cart": "skate"},
-	"double": {"name": "雙重衝刺", "desc": "可以即刻再衝一次", "cart": "skate"},
-	"ghost": {"name": "殘影", "desc": "衝刺後無敵時間更長", "cart": "skate"},
+	"trail": {"name": "火焰軌跡", "desc": "翻滾後留下火焰", "cart": "skate"},
+	"grind": {"name": "磨擦衝撞", "desc": "翻滾穿過敵人造成傷害", "cart": "skate"},
+	"double": {"name": "雙重翻滾", "desc": "多一段翻滾充能", "cart": "skate"},
+	"ghost": {"name": "殘影", "desc": "翻滾後無敵時間更長", "cart": "skate"},
 	# 裝備：任何角色都可以穿。武器決定普通攻擊的方式，其餘提供屬性。
 	"pipe": {"name": "鐵管", "cart": "weapon", "kind": "melee", "dmg": 10, "cd": 0.55, "reach": 2.2},
 	"gloves": {"name": "拳套", "cart": "weapon", "kind": "melee", "dmg": 6, "cd": 0.32, "reach": 1.8},
@@ -255,7 +282,7 @@ func random_item() -> Dictionary:
 		rarity = 1
 	var types: Array = ITEM_TYPES.keys()
 	if item_rolls == 2:
-		# 第 2 件必定是衝刺配件，第 3 件必定是裝備，方便新手發現各系統。
+		# 第 2 件必定是翻滾配件，第 3 件必定是裝備，方便新手發現各系統。
 		types = types.filter(func(t: String) -> bool: return ITEM_TYPES[t]["cart"] == "skate")
 	else:
 		var want_gear := item_rolls == 3 or (item_rolls != 2 and randf() < 0.4)
@@ -482,26 +509,70 @@ func armor_reduction(amount: float) -> float:
 func resist_of(element: String) -> float:
 	return clampf(gear_total(ELEMENT_RESIST[element]), 0.0, 75.0) if ELEMENT_RESIST.has(element) else 0.0
 
-func take_damage(amount: int, element := "phys") -> void:
+func take_damage(amount: int, element := "phys", source: Node = null) -> void:
 	if dead or iframe_left > 0.0:
 		return
+	var raw := float(amount)
+	var blocked := false
+	if guarding and _guard_covers(source):
+		if guard_age <= PERFECT_WINDOW:
+			_perfect_block(source)
+			return
+		blocked = true
 	if element == "phys":
 		amount = maxi(1, roundi(amount * (1.0 - armor_reduction(amount))))
 	else:
 		amount = maxi(1, roundi(amount * (1.0 - resist_of(element) / 100.0)))
+	if blocked:
+		amount = maxi(1, roundi(amount * 0.3))
 	hp = maxi(hp - amount, 0)
-	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.0, 0), str(amount), ELEMENT_COLORS.get(element, Color("CC6657")), true)
-	hurt_flash = 0.4
-	HITFX.sparks(get_parent(), global_position + Vector3(0, 1.0, 0), ELEMENT_COLORS.get(element, Color("CC6657")), 10, 1.2)
-	HITFX.shake(self, 0.3)
-	HITFX.hit_stop(get_tree(), 0.05)
-	SFX.play(self, "death" if hp == 0 else "hurt", -3.0)
+	var col: Color = ELEMENT_COLORS.get(element, Color("CC6657"))
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.0, 0), ("擋 " if blocked else "") + str(amount), Color("9AA3AD") if blocked else col, not blocked)
+	hurt_flash = 0.2 if blocked else 0.4
+	HITFX.sparks(get_parent(), global_position + Vector3(0, 1.0, 0), Color("9FB6E8") if blocked else col, 6 if blocked else 10, 1.0 if blocked else 1.2)
+	HITFX.shake(self, 0.12 if blocked else 0.3)
+	SFX.play(self, "death" if hp == 0 else ("hit" if blocked else "hurt"), -3.0)
+	_take_poise(raw * (0.4 if blocked else 1.0))
 	if hp == 0:
 		dead = true
 		save_progress()
 		has_target = false
 		windup_left = -1.0
 		model.rotation.x = -1.4
+
+# 韌性：累積到 0 就踉蹌一下（短硬直），之後 3 秒內不會再被打到踉蹌。
+func _take_poise(amount: float) -> void:
+	poise_wait = 1.5
+	if stagger_immune > 0.0 or stagger_left > 0.0:
+		return
+	poise -= amount
+	if poise <= 0.0:
+		poise = POISE_MAX
+		stagger_left = STAGGER_TIME
+		stagger_immune = STAGGER_TIME + STAGGER_IMMUNE
+		windup_left = -1.0
+		FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.6, 0), "踉蹌", Color("E6D26A"), true)
+
+# 格擋只擋前方；沒有來源（例如飛彈）一律擋得到。
+func _guard_covers(source: Node) -> bool:
+	if source == null or not (source is Node3D):
+		return true
+	var to: Vector3 = (source as Node3D).global_position - global_position
+	to.y = 0.0
+	if to.length() < 0.01:
+		return true
+	return (-global_transform.basis.z).angle_to(to.normalized()) <= deg_to_rad(80.0)
+
+func _perfect_block(source: Node) -> void:
+	FLOATY.spawn(get_parent(), global_position + Vector3(0, 2.4, 0), "完美格擋", Color("E6D26A"), true)
+	HITFX.sparks(get_parent(), global_position + Vector3(0, 1.2, 0) - global_transform.basis.z * 0.8, Color("E6D26A"), 16, 1.6)
+	HITFX.shake(self, 0.2)
+	HITFX.hit_stop(get_tree(), 0.06)
+	SFX.play(self, "slam", -4.0)
+	if source != null and is_instance_valid(source) and source.has_method("take_damage"):
+		source.take_damage(int(skill_damage * 0.6), global_position, 8.0, true)
+		if source.has_method("poise_damage"):
+			source.poise_damage(60.0)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if dead:
@@ -525,7 +596,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_2:
 			use_flask("bento")
 		elif event.keycode == KEY_SPACE:
-			# 有按方向鍵就朝該方向衝刺，否則朝滑鼠位置。
+			# 有按方向鍵就朝該方向翻滾，否則朝滑鼠位置。
 			var wasd := _move_input()
 			if wasd != Vector3.ZERO:
 				dash(global_position + wasd)
@@ -560,10 +631,7 @@ func _pick_point(screen_pos: Vector2) -> Variant:
 
 # Skateboard dash: a quick burst toward the cursor, invulnerable while it lasts.
 func dash(toward: Variant = null) -> void:
-	if dead or windup_left >= 0.0 or dash_left > 0.0:
-		return
-	var extra_ok := dash_extra > 0 and dash_extra_time > 0.0
-	if dash_timer > 0.0 and not extra_ok:
+	if dead or windup_left >= 0.0 or dash_left > 0.0 or roll_charges <= 0 or dash_timer > 0.0:
 		return
 	var dir := -global_transform.basis.z
 	if toward != null:
@@ -574,19 +642,17 @@ func dash(toward: Variant = null) -> void:
 	dir.y = 0.0
 	dash_dir = dir.normalized()
 	dash_left = dash_time + affix_total("range", "skate") / dash_speed
-	iframe_left = dash_left
+	iframe_left = maxf(dash_left, 0.3)
 	var ghost: Variant = item_in_slots("ghost")
 	if ghost != null:
-		iframe_left += 0.5 * item_power(ghost)
+		iframe_left += 0.4 * item_power(ghost)
 	dash_hit.clear()
 	trail_accum = 0.0
-	if extra_ok:
-		dash_extra -= 1
-	else:
-		dash_timer = dash_cooldown * (1.0 - affix_total("cd", "skate") / 100.0)
-		if item_in_slots("double") != null:
-			dash_extra = 1
-			dash_extra_time = 0.8
+	if roll_charges >= roll_max():
+		roll_recharge = ROLL_RECHARGE * (1.0 - affix_total("cd", "skate") / 100.0)
+	roll_charges -= 1
+	dash_timer = dash_cooldown
+	stagger_left = 0.0
 	dashed.emit()
 	SFX.play(self, "dash", -4.0)
 	has_target = false
@@ -604,7 +670,7 @@ func _dash_effects(delta: float) -> void:
 			if d.length() < 1.3:
 				dash_hit.append(enemy)
 				var dmg := skill_damage * 0.7 * item_power(grind) * (1.0 + affix_total("dmg", "skate") / 100.0)
-				enemy.take_damage(int(dmg), global_position, 9.0)
+				enemy.take_damage(int(dmg), global_position, 9.0, true)
 				slammed.emit(1)
 				_hit_stop(0.05)
 				var cam := get_viewport().get_camera_3d()
@@ -618,6 +684,13 @@ func _dash_effects(delta: float) -> void:
 			_spawn_zone(global_position, 1.2, 2.5, int(6 * item_power(trail) * (1.0 + affix_total("dmg", "skate") / 100.0)), Color("CC6657"))
 
 # 拆場: short windup, then a shockwave that hits every enemy in range.
+func roll_max() -> int:
+	var extra := 0
+	for it in slots["skate"]:
+		if it != null and it["type"] == "double":
+			extra += 1
+	return ROLL_BASE_CHARGES + extra
+
 func skill_unlocked(cart: String) -> bool:
 	return not EXTRA_SKILLS.has(cart) or level >= EXTRA_SKILLS[cart]["unlock"]
 
@@ -636,7 +709,7 @@ func _reduce_cd(cart: String, amount: float) -> void:
 # E／R／F：通用技能，即時施放。
 func use_extra(cart: String) -> void:
 	var def: Dictionary = EXTRA_SKILLS[cart]
-	if dead or not skill_unlocked(cart) or extra_timers[cart] > 0.0 or dash_left > 0.0 or windup_left >= 0.0:
+	if dead or not skill_unlocked(cart) or extra_timers[cart] > 0.0 or dash_left > 0.0 or windup_left >= 0.0 or stagger_left > 0.0 or guarding:
 		return
 	var cd: float = def["cd"] * (1.0 - affix_total("cd", cart) / 100.0)
 	extra_timers[cart] = cd
@@ -663,7 +736,7 @@ func use_extra(cart: String) -> void:
 			levelup_flash = 1.2
 
 func use_skill() -> void:
-	if dead or skill_timer > 0.0 or windup_left >= 0.0 or dash_left > 0.0:
+	if dead or skill_timer > 0.0 or windup_left >= 0.0 or dash_left > 0.0 or stagger_left > 0.0 or guarding:
 		return
 	has_target = false
 	if char_id == "skye":
@@ -744,7 +817,7 @@ func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void
 			enemy.global_position = Vector3(center.x, enemy.global_position.y, center.z) + away.normalized() * 1.0
 			dist = 1.0
 		if dist <= radius:
-			enemy.take_damage(dmg, center, opts["knock"])
+			enemy.take_damage(dmg, center, opts["knock"], true)
 			hit_count += 1
 			if enemy.hp <= 0:
 				kills.append(enemy.global_position)
@@ -767,7 +840,7 @@ func _explode(pos: Vector3, radius: float, dmg: int) -> void:
 		var d: Vector3 = enemy.global_position - pos
 		d.y = 0.0
 		if d.length() <= radius:
-			enemy.take_damage(dmg, pos, 6.0)
+			enemy.take_damage(dmg, pos, 6.0, true)
 	_spawn_shockwave(pos, radius)
 
 # Brief freeze on impact: the cheap trick that makes hits feel heavy.
@@ -818,9 +891,18 @@ func _physics_process(delta: float) -> void:
 	attack_swing = maxf(attack_swing - delta * 5.0, 0.0)
 	dash_timer = maxf(dash_timer - delta, 0.0)
 	iframe_left = maxf(iframe_left - delta, 0.0)
-	dash_extra_time = maxf(dash_extra_time - delta, 0.0)
-	if dash_extra_time <= 0.0:
-		dash_extra = 0
+	var rmax := roll_max()
+	if roll_charges < rmax:
+		roll_recharge -= delta
+		if roll_recharge <= 0.0:
+			roll_charges += 1
+			roll_recharge = ROLL_RECHARGE * (1.0 - affix_total("cd", "skate") / 100.0) if roll_charges < rmax else 0.0
+	roll_charges = mini(roll_charges, rmax)
+	poise_wait = maxf(poise_wait - delta, 0.0)
+	if poise_wait <= 0.0 and poise < POISE_MAX:
+		poise = minf(poise + 15.0 * delta, POISE_MAX)
+	stagger_left = maxf(stagger_left - delta, 0.0)
+	stagger_immune = maxf(stagger_immune - delta, 0.0)
 	levelup_flash = maxf(levelup_flash - delta, 0.0)
 	if dead:
 		velocity.x = 0.0
@@ -830,10 +912,25 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 	var move := Vector3.ZERO
+	var want_guard := Input.is_key_pressed(KEY_SHIFT) and dash_left <= 0.0 and windup_left < 0.0 and stagger_left <= 0.0
+	if want_guard and not guarding:
+		guard_age = 0.0
+	guarding = want_guard
+	guard_age = guard_age + delta if guarding else 999.0
+	guard_visual.visible = guarding
+	if guarding:
+		var gp: Variant = _pick_point(get_viewport().get_mouse_position())
+		if gp != null:
+			var gd: Vector3 = gp - global_position
+			gd.y = 0.0
+			if gd.length() > 0.2:
+				look_at(global_position + gd, Vector3.UP)
 	if dash_left > 0.0:
 		dash_left -= delta
 		move = dash_dir * dash_speed
 		_dash_effects(delta)
+	elif stagger_left > 0.0:
+		model.rotation.x = lerpf(model.rotation.x, 0.5, 0.4)
 	elif windup_left >= 0.0:
 		windup_left -= delta
 		model.rotation.x = lerpf(model.rotation.x, -0.4, 0.4)
@@ -842,9 +939,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		var dir := _move_input()
 		if dir != Vector3.ZERO:
-			move = dir * speed * (1.4 if buff_left > 0.0 else 1.0)
-			look_at(global_position + dir, Vector3.UP)
-	if windup_left < 0.0 and dash_left <= 0.0:
+			move = dir * speed * (1.4 if buff_left > 0.0 else 1.0) * (0.4 if guarding else 1.0)
+			if not guarding:
+				look_at(global_position + dir, Vector3.UP)
+	if windup_left < 0.0 and dash_left <= 0.0 and stagger_left <= 0.0 and not guarding:
 		_auto_attack()
 	if windup_left < 0.0:
 		model.rotation.x = lerpf(model.rotation.x, -0.25 if dash_left > 0.0 else 0.0, 0.3)

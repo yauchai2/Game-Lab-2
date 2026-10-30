@@ -67,6 +67,7 @@ var boss_woke := false
 var boss_down_shown := false
 var camps_saved := 0
 var show_hints := false
+var guarded := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -436,7 +437,11 @@ func _current_hint() -> String:
 	if any_awake and not skill_used:
 		return "Q 或滑鼠右鍵：放大技（普通攻擊會自動出手）"
 	if any_awake and not dashed:
-		return "空白鍵：衝刺，期間無敵，用來躲開紅圈"
+		return "空白鍵：翻滾，期間無敵，用來躲開紅圈"
+	if jax.guarding:
+		guarded = true
+	if any_awake and not guarded:
+		return "按住 Shift：格擋（面向滑鼠）。剛按下就被打中＝完美格擋並反擊"
 	if not bench_opened and jax.inventory.size() > 0:
 		return "按 C 打開工作枱，裝上掉落的配件與裝備"
 	return ""
