@@ -1,5 +1,7 @@
 extends Node3D
 
+const CHAPTER := preload("res://game/scripts/chapter.gd")
+
 const ENEMY_SCENE := preload("res://game/enemy.tscn")
 const BOSS_SCENE := preload("res://game/boss.tscn")
 const BOSS_POS := Vector3(0, 0.05, -17)
@@ -18,10 +20,12 @@ var victory := false
 @onready var jax: CharacterBody3D = $Jax
 
 func _ready() -> void:
-	jax.global_position = START_POS
-	for i in CAMPS.size():
-		_spawn_camp(i)
-	_spawn_boss()
+	# 第一章場景由 Street 節點上的 level_loader 建立；只有舊試玩場在這裡生成敵群與頭目。
+	if CHAPTER.level == "arena":
+		jax.global_position = START_POS
+		for i in CAMPS.size():
+			_spawn_camp(i)
+		_spawn_boss()
 
 func _spawn_camp(index: int) -> void:
 	var camp: Dictionary = CAMPS[index]

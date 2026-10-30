@@ -57,7 +57,10 @@ func _setup_environment() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
-	var sun: DirectionalLight3D = get_parent().get_node_or_null("Sun")
+	var root_node := get_parent()
+	while root_node != null and not root_node.has_node("Sun"):
+		root_node = root_node.get_parent()
+	var sun: DirectionalLight3D = root_node.get_node_or_null("Sun") if root_node != null else null
 	if sun:
 		sun.light_color = Color("FFF1D6")
 		sun.light_energy = 0.7
