@@ -1,9 +1,8 @@
 extends RefCounted
 ## 天賦樹：四條路線，每條 12 點。每升一級得 1 點天賦點，擊敗頭目再得 2 點。
-## 只能從路線起點開始，沿相連的點往外點。10 級前只看得見附近 20 點，10 級後全部可見。
+## 只能從路線起點開始，沿相連的點往外點。完整樹隨時可看，每條路線標出幾個值得探索的點。
 
-const REVEAL_LEVEL := 10
-const REVEAL_COUNT := 20
+const FREE_RESPEC_LEVEL := 10
 const RESPEC_COST := 5
 const BOSS_BONUS := 2
 
@@ -69,31 +68,12 @@ static func all_ids() -> Array:
 			out.append(node_id(r, i))
 	return out
 
-## 目前看得見的點：10 級前只有已點的點，加上由內往外最近的 20 點。
-static func visible_ids(taken: Array, level: int) -> Array:
-	var all := all_ids()
-	if level >= REVEAL_LEVEL:
-		return all
-	var seen: Array = taken.duplicate()
-	var frontier: Array = []
-	for r in ROUTES:
-		frontier.append(node_id(r, 0))
-	# 由已點的點往外一層一層展開（沒點過就由四條路線的起點開始）
-	for t in taken:
-		for i in all:
-			if parent_of(i) == t and not taken.has(i) and not frontier.has(i):
-				frontier.append(i)
-	var budget := REVEAL_COUNT
-	while not frontier.is_empty() and budget > 0:
-		var next: Array = []
-		for f in frontier:
-			if budget <= 0:
-				break
-			if not seen.has(f):
-				seen.append(f)
-				budget -= 1
-			for i in all:
-				if parent_of(i) == f and not seen.has(i) and not next.has(i):
-					next.append(i)
-		frontier = next
-	return seen
+## 每條路線標出幾個值得探索的點（序號），介面用亮色標記。
+const HIGHLIGHTS := {"a": [8, 6, 10], "d": [3, 10, 9], "m": [3, 6, 10], "s": [0, 4, 6]}
+
+static func is_highlight(id: String) -> bool:
+	return HIGHLIGHTS[id.substr(0, 1)].has(int(id.substr(1)))
+
+## 10 級前重置免費，之後要單據。
+static func respec_cost(level: int) -> int:
+	return 0 if level < FREE_RESPEC_LEVEL else RESPEC_COST

@@ -390,9 +390,10 @@ func alloc_talent(id: String) -> bool:
 	return true
 
 func respec_talents() -> bool:
-	if talents.is_empty() or receipts < TALENTS.RESPEC_COST:
+	var cost: int = TALENTS.respec_cost(level)
+	if talents.is_empty() or receipts < cost:
 		return false
-	receipts -= TALENTS.RESPEC_COST
+	receipts -= cost
 	talents.clear()
 	recalc_gear()
 	return true

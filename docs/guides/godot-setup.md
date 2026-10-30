@@ -212,7 +212,7 @@
 ## 天賦樹
 
 - 資料與規則在 `game/scripts/talents.gd`，四條路線（爆發／硬撐／遊走／補給），每條 12 點，形狀相同，要增減點只需改 `ROUTES` 裡的 `nodes`。
-- 天賦點：每升一級 1 點，擊敗頭目再得 2 點（`BOSS_BONUS`）。只能點與已點相連的點；重置要 5 單據。
-- 介面：工作枱（C）上方「天賦」分頁。先看總覽、揀一條路線，鏡頭拉近看該路線細節。10 級前只看得見附近 20 點（`REVEAL_LEVEL`、`REVEAL_COUNT`），10 級後全部可見。
+- 天賦點：每升一級 1 點，擊敗頭目再得 2 點（`BOSS_BONUS`）。只能點與已點相連的點；
+- 介面：工作枱（C）上方「天賦」分頁。先看總覽、揀一條路線，鏡頭拉近看該路線細節。完整樹隨時可看，每條路線用 ★ 標出幾個值得探索的點（`HIGHLIGHTS`）。10 級前重置免費（`FREE_RESPEC_LEVEL`），之後 5 單據。
 - 效果在 `jax.gd`：`talent_total(kind)` 併入 `gear_total`（傷害、攻速、生命、護甲、抗性等），另有韌性上限 `poise_cap()`、翻滾 `roll_max()`／`roll_recharge_time()`、完美格擋時間、汽水回血、補給充能、重擊破防（`enemy.gd`）。
 - 存檔：`talents`、`talent_bonus` 存入 `progress.gd` 的存檔資料；舊存檔沒有這兩項也能讀。

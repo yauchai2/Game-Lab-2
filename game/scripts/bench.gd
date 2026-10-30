@@ -202,9 +202,9 @@ func _talent_view() -> void:
 		_talent_overview()
 	else:
 		_talent_route()
-	var rb := _cell(Vector2(536, 332), Vector2(88, 16), "重置 %d" % jax.TALENTS.RESPEC_COST, GOLD, CELL, 1)
+	var rb := _cell(Vector2(536, 332), Vector2(88, 16), "重置 免費" if jax.TALENTS.respec_cost(jax.level) == 0 else "重置 %d" % jax.TALENTS.respec_cost(jax.level), GOLD, CELL, 1)
 	rb.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	rb.disabled = jax.talents.is_empty() or jax.receipts < jax.TALENTS.RESPEC_COST
+	rb.disabled = jax.talents.is_empty() or jax.receipts < jax.TALENTS.respec_cost(jax.level)
 	rb.add_theme_color_override("font_color", Color("E6D9B5"))
 	rb.add_theme_color_override("font_disabled_color", Color("5E5848"))
 	rb.pressed.connect(_on_respec)
@@ -253,14 +253,15 @@ func _talent_route() -> void:
 	var back := _cell(Vector2(16, 48), Vector2(60, 16), "返回總覽", GOLD, CELL, 1)
 	back.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	back.pressed.connect(_leave_route)
-	if jax.level < jax.TALENTS.REVEAL_LEVEL:
-		_label("10 級前只看得見附近 20 點。", Vector2(16, 70), 9, Color("8C8470"))
+	_label("★ 為值得探索的點", Vector2(16, 70), 9, Color("E6D26A"))
+	if jax.level < jax.TALENTS.FREE_RESPEC_LEVEL:
+		_label("10 級前重置免費，放心試。", Vector2(16, 84), 9, Color("8C8470"))
 	var graph := Control.new()
 	graph.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	graph.position = Vector2.ZERO
 	graph.size = Vector2(640, 360)
 	body.add_child(graph)
-	var vis: Array = jax.TALENTS.visible_ids(jax.talents, jax.level)
+	var vis: Array = jax.TALENTS.all_ids()
 	var pos_of := func(id: String) -> Vector2:
 		var lp: Vector2 = jax.TALENTS.local_pos(id)
 		return Vector2(330 + (lp.x + 0.75) * 66, 300 - lp.y * 54)
@@ -285,9 +286,9 @@ func _talent_route() -> void:
 		var b := Button.new()
 		b.position = pos_of.call(id) - Vector2(30, 17)
 		b.size = Vector2(60, 34)
-		b.text = n["name"]
+		b.text = ("★" if jax.TALENTS.is_highlight(id) else "") + n["name"]
 		b.add_theme_font_size_override("font_size", 9)
-		var border: Color = col if taken else (GOLD if can else Color("3A3426"))
+		var border: Color = col if taken else (GOLD if can else (Color("E6D26A").darkened(0.35) if jax.TALENTS.is_highlight(id) else Color("3A3426")))
 		var fill: Color = col.darkened(0.55) if taken else CELL
 		for st in ["normal", "hover", "pressed", "focus", "disabled"]:
 			b.add_theme_stylebox_override(st, _style(CELL_HOVER if st == "hover" else fill, border, 2 if (taken or can) else 1))
