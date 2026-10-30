@@ -1,20 +1,27 @@
 extends Node3D
 
 const ENEMY_SCENE := preload("res://game/enemy.tscn")
+const BOSS_SCENE := preload("res://game/boss.tscn")
 const ARENA_LIMIT := 18.0
+const BOSS_WAVE := 3
 
 var wave := 0
 var next_wave_timer := 1.5
+var boss: Node = null
+var victory := false
 
 @onready var jax: CharacterBody3D = $Jax
 
 func _process(delta: float) -> void:
-	if jax.dead:
+	if jax.dead or victory or boss != null:
 		return
 	if get_tree().get_nodes_in_group("enemies").is_empty():
 		next_wave_timer -= delta
 		if next_wave_timer <= 0.0:
-			_spawn_wave()
+			if wave >= BOSS_WAVE:
+				_spawn_boss()
+			else:
+				_spawn_wave()
 	else:
 		next_wave_timer = 3.0
 
@@ -34,3 +41,13 @@ func _spawn_wave() -> void:
 		pos.z = clampf(pos.z, -ARENA_LIMIT, ARENA_LIMIT)
 		add_child(enemy)
 		enemy.global_position = pos
+
+func _spawn_boss() -> void:
+	boss = BOSS_SCENE.instantiate()
+	add_child(boss)
+	boss.global_position = jax.global_position + Vector3(0, 0, -11)
+	boss.defeated.connect(func() -> void: victory = true)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if victory and event is InputEventKey and event.pressed and event.keycode == KEY_R:
+		get_tree().reload_current_scene()

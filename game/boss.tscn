@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://game/scripts/boss.gd" id="1_boss"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_boss"]
+size = Vector3(2.2, 3.2, 2.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape_boss"]
+size = Vector3(2.2, 3.2, 2.2)
+
+[node name="Boss" type="CharacterBody3D"]
+script = ExtResource("1_boss")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+mesh = SubResource("BoxMesh_boss")
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+shape = SubResource("BoxShape_boss")

@@ -15,6 +15,9 @@ var card_sub := Label.new()
 var card_tween: Tween
 var bench := VBoxContainer.new()
 var bench_dim := ColorRect.new()
+var boss_back := ColorRect.new()
+var boss_fill := ColorRect.new()
+var boss_label := Label.new()
 var bench_msg := Label.new()
 var selected_uid := -1
 
@@ -31,6 +34,20 @@ func _ready() -> void:
 	bench_dim.visible = false
 	add_child(bench_dim)
 	add_child(bench)
+	boss_back.color = Color("292D3B")
+	boss_back.position = Vector2(220, 340)
+	boss_back.size = Vector2(202, 10)
+	boss_back.visible = false
+	add_child(boss_back)
+	boss_fill.color = Color("D6D573")
+	boss_fill.position = Vector2(221, 9)
+	boss_fill.size = Vector2(200, 8)
+	boss_back.add_child(boss_fill)
+	boss_fill.position = Vector2(1, 1)
+	boss_label.add_theme_font_size_override("font_size", 10)
+	boss_label.position = Vector2(220, 326)
+	boss_label.visible = false
+	add_child(boss_label)
 	hp_back.color = Color("292D3B")
 	hp_back.position = Vector2(8, 8)
 	hp_back.size = BAR_SIZE + Vector2(2, 2)
@@ -86,7 +103,16 @@ func _process(_delta: float) -> void:
 	var skill := "就緒" if cd <= 0.0 else "%.1fs" % cd
 	var dash: String = "就緒" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
 	info.text = "等級 %d  生命 %d/%d  第 %d 波  單據 %d\n拆場［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］" % [jax.level, jax.hp, jax.max_hp, get_parent().wave, jax.receipts, skill, dash]
-	if jax.dead:
+	var b: Node = get_parent().boss
+	var boss_alive: bool = b != null and is_instance_valid(b) and b.hp > 0
+	boss_back.visible = boss_alive
+	boss_label.visible = boss_alive
+	if boss_alive:
+		boss_fill.size.x = 200.0 * float(b.hp) / float(b.max_hp)
+		boss_label.text = "頭目：" + b.boss_name
+	if get_parent().victory:
+		banner.text = "通關！　按 R 再玩一次"
+	elif jax.dead:
 		banner.text = "倒下了 － 按 R 重新開始"
 	elif jax.levelup_flash > 0.0 and not bench.visible:
 		banner.text = jax.flash_text
