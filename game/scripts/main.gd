@@ -46,7 +46,9 @@ func _spawn_boss() -> void:
 	boss = BOSS_SCENE.instantiate()
 	add_child(boss)
 	boss.global_position = jax.global_position + Vector3(0, 0, -11)
-	boss.defeated.connect(func() -> void: victory = true)
+	boss.defeated.connect(func() -> void:
+		victory = true
+		boss = null)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if victory and event is InputEventKey and event.pressed and event.keycode == KEY_R:

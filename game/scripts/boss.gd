@@ -51,7 +51,7 @@ func _physics_process(delta: float) -> void:
 				_slam_start(player)
 		if dist > 0.01:
 			look_at(global_position + to, Vector3.UP)
-		if not summoned and hp <= max_hp / 2:
+		if not summoned and hp <= max_hp * 0.5:
 			summoned = true
 			_summon()
 	velocity.x = move.x + knockback.x
@@ -61,7 +61,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 func _slam_start(player: Node3D) -> void:
-	slam_cooldown = 3.5 if hp > max_hp / 2 else 2.5
+	slam_cooldown = 3.5 if hp > max_hp * 0.5 else 2.5
 	slam_pending = SLAM_DELAY
 	slam_center = player.global_position
 	_spawn_zone(slam_center, SLAM_RADIUS, SLAM_DELAY, 0, Color("D6D573"))
