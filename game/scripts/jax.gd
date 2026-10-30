@@ -61,7 +61,7 @@ func gain_xp(amount: int) -> void:
 		max_hp += 10
 		skill_damage += 3
 		hp = max_hp
-		flash_text = "LEVEL UP!"
+		flash_text = "升級！"
 		levelup_flash = 1.5
 
 const ZONE := preload("res://game/scripts/zone.gd")
@@ -69,25 +69,25 @@ const ZONE := preload("res://game/scripts/zone.gd")
 # --- Cartridge attachments: random drops with rarity, equipped into 2 slots ---
 
 const ITEM_TYPES := {
-	"heavy": {"name": "Heavy Stamp", "desc": "damage up, slower windup", "cart": "demolish"},
-	"burst": {"name": "Echo Slam", "desc": "hits multiple times", "cart": "demolish"},
-	"linger": {"name": "Scorch Zone", "desc": "leaves a damaging zone", "cart": "demolish"},
-	"delay": {"name": "Time Bomb", "desc": "delayed blast, wider range", "cart": "demolish"},
-	"knock": {"name": "Gut Punch", "desc": "huge knockback", "cart": "demolish"},
-	"vacuum": {"name": "Black Hole", "desc": "pulls enemies in before the hit", "cart": "demolish"},
-	"chain": {"name": "Chain Reaction", "desc": "kills explode", "cart": "demolish"},
-	"frenzy": {"name": "Adrenaline", "desc": "each hit trims cooldown", "cart": "demolish"},
-	"trail": {"name": "Flame Trail", "desc": "dash leaves fire behind", "cart": "skate"},
-	"grind": {"name": "Grind Strike", "desc": "dash hurts what you pass", "cart": "skate"},
-	"double": {"name": "Double Dash", "desc": "a second dash right away", "cart": "skate"},
-	"ghost": {"name": "Afterimage", "desc": "extra safe time after dashing", "cart": "skate"},
+	"heavy": {"name": "重踏", "desc": "傷害提升，蓄力較慢", "cart": "demolish"},
+	"burst": {"name": "迴響震擊", "desc": "連續多下攻擊", "cart": "demolish"},
+	"linger": {"name": "焦土", "desc": "留下持續傷害區", "cart": "demolish"},
+	"delay": {"name": "定時炸彈", "desc": "延遲爆發，範圍更闊", "cart": "demolish"},
+	"knock": {"name": "重拳", "desc": "大幅擊飛", "cart": "demolish"},
+	"vacuum": {"name": "黑洞", "desc": "先吸住敵人再爆", "cart": "demolish"},
+	"chain": {"name": "連鎖反應", "desc": "擊殺敵人會爆炸", "cart": "demolish"},
+	"frenzy": {"name": "腎上腺素", "desc": "每次命中縮短冷卻", "cart": "demolish"},
+	"trail": {"name": "火焰軌跡", "desc": "衝刺後留下火焰", "cart": "skate"},
+	"grind": {"name": "磨擦衝撞", "desc": "衝刺穿過敵人造成傷害", "cart": "skate"},
+	"double": {"name": "雙重衝刺", "desc": "可以即刻再衝一次", "cart": "skate"},
+	"ghost": {"name": "殘影", "desc": "衝刺後無敵時間更長", "cart": "skate"},
 }
-const RARITY_NAMES := ["Normal", "Magic", "Rare"]
+const RARITY_NAMES := ["普通", "魔法", "稀有"]
 const RARITY_WEIGHTS := [70, 25, 5]
 const AFFIXES := {
-	"dmg": {"min": 8.0, "max": 18.0, "text": "+%d%% damage"},
-	"range": {"min": 0.3, "max": 0.8, "text": "+%.1fm range"},
-	"cd": {"min": 5.0, "max": 12.0, "text": "-%d%% cooldown"},
+	"dmg": {"min": 8.0, "max": 18.0, "text": "傷害 +%d%%"},
+	"range": {"min": 0.3, "max": 0.8, "text": "範圍 +%.1f米"},
+	"cd": {"min": 5.0, "max": 12.0, "text": "冷卻 -%d%%"},
 }
 const INVENTORY_LIMIT := 10
 const REROLL_COST := 2
@@ -129,7 +129,7 @@ func should_drop_item(from_ranged: bool) -> bool:
 	return randf() < (0.35 if from_ranged else 0.25)
 
 func item_name(item: Dictionary) -> String:
-	return "%s %s" % [RARITY_NAMES[item["rarity"]], ITEM_TYPES[item["type"]]["name"]]
+	return "%s・%s" % [RARITY_NAMES[item["rarity"]], ITEM_TYPES[item["type"]]["name"]]
 
 func item_affix_text(item: Dictionary) -> String:
 	var parts: Array[String] = []
@@ -180,11 +180,11 @@ func slot_names(cart: String) -> String:
 
 func add_item(item: Dictionary) -> bool:
 	if inventory.size() >= INVENTORY_LIMIT:
-		flash_text = "INVENTORY FULL"
+		flash_text = "背包已滿"
 		levelup_flash = 1.0
 		return false
 	inventory.append(item)
-	flash_text = "GOT: %s" % item_name(item)
+	flash_text = "獲得：%s" % item_name(item)
 	levelup_flash = 1.5
 	return true
 
@@ -200,16 +200,16 @@ func toggle_equip(uid: int) -> String:
 	var cart: String = ITEM_TYPES[item["type"]]["cart"]
 	var free: int = slots[cart].find(null)
 	if free < 0:
-		return "Both %s slots are full. Unequip one first." % cart
+		return "此卡匣兩個槽已滿，請先拆下一個。"
 	slots[cart][free] = item
 	return ""
 
 func reroll_item(uid: int) -> String:
 	var item: Variant = find_item(uid)
 	if item == null or item["rarity"] == 0:
-		return "Normal items have nothing to reroll."
+		return "普通配件沒有詞綴可重擲。"
 	if receipts < REROLL_COST:
-		return "Not enough receipts."
+		return "單據不足。"
 	receipts -= REROLL_COST
 	item["affixes"] = _roll_affixes(item["rarity"])
 	return ""
@@ -219,10 +219,10 @@ func upgrade_item(uid: int) -> String:
 	if item == null:
 		return ""
 	if item["rarity"] >= 2:
-		return "Already Rare."
+		return "已是稀有，無法再升級。"
 	var cost: int = UPGRADE_COSTS[item["rarity"]]
 	if receipts < cost:
-		return "Not enough receipts."
+		return "單據不足。"
 	receipts -= cost
 	item["rarity"] += 1
 	item["affixes"] = _roll_affixes(item["rarity"])
@@ -310,7 +310,7 @@ func dash(toward: Variant = null) -> void:
 			dash_extra = 1
 			dash_extra_time = 0.8
 	dashed.emit()
-	skill_cast.emit("SKATE DASH", slot_names("skate"))
+	skill_cast.emit("滑板衝刺", slot_names("skate"))
 	has_target = false
 	look_at(global_position + dash_dir, Vector3.UP)
 
@@ -345,7 +345,7 @@ func use_skill() -> void:
 		return
 	has_target = false
 	windup_left = skill_windup + (0.2 if item_in_slots("heavy") != null else 0.0)
-	skill_cast.emit("DEMOLISH", slot_names("demolish"))
+	skill_cast.emit("拆場", slot_names("demolish"))
 	skill_timer = skill_cooldown * (1.0 - affix_total("cd", "demolish") / 100.0)
 
 func _slam() -> void:

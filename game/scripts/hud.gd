@@ -83,11 +83,11 @@ func _process(_delta: float) -> void:
 	hp_fill.size.x = BAR_SIZE.x * float(jax.hp) / float(jax.max_hp)
 	xp_fill.size.x = BAR_SIZE.x * float(jax.xp) / float(jax.xp_to_next())
 	var cd: float = jax.skill_timer
-	var skill := "READY" if cd <= 0.0 else "%.1fs" % cd
-	var dash: String = "READY" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
-	info.text = "Lv %d  HP %d/%d  Wave %d  Receipts %d\nDemolish [Q/RMB]: %s   Dash [Space]: %s   Cartridge [C]" % [jax.level, jax.hp, jax.max_hp, get_parent().wave, jax.receipts, skill, dash]
+	var skill := "就緒" if cd <= 0.0 else "%.1fs" % cd
+	var dash: String = "就緒" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
+	info.text = "等級 %d  生命 %d/%d  第 %d 波  單據 %d\n拆場［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］" % [jax.level, jax.hp, jax.max_hp, get_parent().wave, jax.receipts, skill, dash]
 	if jax.dead:
-		banner.text = "KO  -  press R to restart"
+		banner.text = "倒下了 － 按 R 重新開始"
 	elif jax.levelup_flash > 0.0 and not bench.visible:
 		banner.text = jax.flash_text
 	else:
@@ -136,20 +136,21 @@ func _item_line(it: Dictionary) -> String:
 	var affixes: String = jax.item_affix_text(it)
 	return line + ("  (" + affixes + ")" if affixes != "" else "")
 
-const CART_TAGS := {"demolish": "Q", "skate": "Sp"}
+const CART_NAMES := {"demolish": "拆場", "skate": "滑板衝刺"}
+const CART_TAGS := {"demolish": "Q", "skate": "衝"}
 
 func _refresh_bench() -> void:
 	for c in bench.get_children():
 		c.queue_free()
-	bench.add_child(_bench_label("CARTRIDGES   Receipts %d   (C to close)" % jax.receipts, 12))
+	bench.add_child(_bench_label("卡匣工作枱　單據 %d　（按 C 關閉）" % jax.receipts, 12))
 	for cart in jax.slots:
 		for i in jax.slots[cart].size():
 			var it: Variant = jax.slots[cart][i]
-			var b := _bench_button("[%s] %s %s: %s" % [CART_TAGS[cart], cart.capitalize(), "AB"[i], _item_line(it) if it != null else "(empty)"], _on_slot.bind(cart, i))
+			var b := _bench_button("［%s］%s %s：%s" % [CART_TAGS[cart], CART_NAMES[cart], "AB"[i], _item_line(it) if it != null else "（空）"], _on_slot.bind(cart, i))
 			if it != null:
 				b.add_theme_color_override("font_color", RARITY_COLORS[it["rarity"]])
 			bench.add_child(b)
-	bench.add_child(_bench_label("Inventory %d/%d (click to select):" % [jax.inventory.size(), jax.INVENTORY_LIMIT]))
+	bench.add_child(_bench_label("背包 %d/%d（點選配件）：" % [jax.inventory.size(), jax.INVENTORY_LIMIT]))
 	for it in jax.inventory:
 		var mark := ">" if it["uid"] == selected_uid else " "
 		var eq := "[E] " if not jax.slot_info(it["uid"]).is_empty() else ""
@@ -161,11 +162,11 @@ func _refresh_bench() -> void:
 	var sel: Variant = jax.find_item(selected_uid)
 	var equipped: bool = sel != null and not jax.slot_info(selected_uid).is_empty()
 	var rarity: int = sel["rarity"] if sel != null else 0
-	var up_text := "Upgrade (%d)" % jax.UPGRADE_COSTS[rarity] if rarity < 2 else "Upgrade (max)"
-	row.add_child(_bench_button("Unequip" if equipped else "Equip", _act.bind("toggle_equip")))
-	row.add_child(_bench_button("Reroll (%d)" % jax.REROLL_COST, _act.bind("reroll_item")))
+	var up_text := "升級（%d）" % jax.UPGRADE_COSTS[rarity] if rarity < 2 else "升級（已滿）"
+	row.add_child(_bench_button("拆下" if equipped else "裝上", _act.bind("toggle_equip")))
+	row.add_child(_bench_button("重擲（%d）" % jax.REROLL_COST, _act.bind("reroll_item")))
 	row.add_child(_bench_button(up_text, _act.bind("upgrade_item")))
-	row.add_child(_bench_button("Scrap (+1)", _act.bind("scrap_item")))
+	row.add_child(_bench_button("拆解（+1）", _act.bind("scrap_item")))
 	for b in row.get_children():
 		b.disabled = sel == null
 	bench.add_child(row)

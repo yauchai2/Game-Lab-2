@@ -61,23 +61,23 @@
 
 | 配件 | 效果 |
 |---|---|
-| Heavy Stamp | 傷害提升，蓄力慢 0.2 秒 |
-| Echo Slam | 連擊（Rare 連 3 下） |
-| Scorch Zone | 留下持續傷害區 |
-| Time Bomb | 延遲爆發，範圍更闊、傷害更高 |
-| Gut Punch | 擊飛敵人 |
-| Black Hole | 先將敵人吸向中心再爆 |
-| Chain Reaction | 被打中嘅敵人再爆炸，波及附近 |
-| Adrenaline | 每擊中一隻敵人縮短冷卻 |
+| 重踏 Heavy Stamp | 傷害提升，蓄力慢 0.2 秒 |
+| 迴響震擊 Echo Slam | 連擊（Rare 連 3 下） |
+| 焦土 Scorch Zone | 留下持續傷害區 |
+| 定時炸彈 Time Bomb | 延遲爆發，範圍更闊、傷害更高 |
+| 重拳 Gut Punch | 擊飛敵人 |
+| 黑洞 Black Hole | 先將敵人吸向中心再爆 |
+| 連鎖反應 Chain Reaction | 被打中嘅敵人再爆炸，波及附近 |
+| 腎上腺素 Adrenaline | 每擊中一隻敵人縮短冷卻 |
 
 **衝刺配件（4 款）**
 
 | 配件 | 效果 |
 |---|---|
-| Flame Trail | 衝刺路上留下火焰區 |
-| Grind Strike | 衝刺穿過敵人造成傷害 |
-| Double Dash | 多衝一次 |
-| Afterimage | 無敵時間加長 |
+| 火焰軌跡 Flame Trail | 衝刺路上留下火焰區 |
+| 磨擦衝撞 Grind Strike | 衝刺穿過敵人造成傷害 |
+| 雙重衝刺 Double Dash | 多衝一次 |
+| 殘影 Afterimage | 無敵時間加長 |
 
 稀有度愈高，效果愈強（Magic +15%、Rare +30%），而且帶隨機詞綴：Magic 1 條、Rare 2 條（+傷害%、+範圍、-冷卻%）。
 
@@ -85,6 +85,8 @@
 - 點背包配件選取，按 **Equip／Unequip** 裝上或拆下（自動裝入對應卡匣）；點上面嘅槽可以直接拆走。
 - **單據**用途：**Reroll（2）** 重擲詞綴（Magic／Rare）、**Upgrade（3／6）** 升稀有度（Normal→Magic→Rare，詞綴重新抽）、**Scrap（+1）** 拆解配件換 1 單據。
 - 配件可以疊加，例如 Echo Slam + Time Bomb、Flame Trail + Double Dash。
+
+**語言：** 遊戲內文字暫時全部係中文（字體用系統字體，Windows／Mac 直接顯示；日後出 Web 版要另外放中文字型檔）。
 
 ## 打擊演出
 
