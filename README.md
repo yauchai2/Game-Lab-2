@@ -8,6 +8,7 @@
 |---|---|
 | `docs/design/` | 企劃、角色設定、玩法、劇情（文字文件） |
 | `docs/art/` | 美術風格指南、參考分析、三視圖/表情稿說明 |
+| `docs/guides/` | 逐步教學（安裝工具、做第一個場景等） |
 | `assets/characters/` | 角色模型、貼圖、動畫（Blender 出嘅檔案） |
 | `assets/environment/` | 街道、建築、道具模型 |
 | `assets/audio/` | 音效、音樂 |
@@ -19,6 +20,7 @@
 - `docs/art/style-guide.md` — 美術風格（由兩條參考影片整理）
 - `docs/design/characters.md` — 四人角色設定（唯一來源）
 - `docs/design/game-plan.md` — 企劃草案、待決定問題、工具路線
+- `docs/guides/godot-setup.md` — Godot 安裝同第一個灰盒場景
 
 ## 規則
 
