@@ -446,8 +446,15 @@ func slot_names(cart: String) -> String:
 			names.append(item_name(it).to_upper())
 	return " + ".join(names)
 
+# 已裝上嘅裝備同技能配件不佔背包格，背包只計算未裝上的。
+func bag_items() -> Array:
+	return inventory.filter(func(it: Dictionary) -> bool: return slot_info(it["uid"]).is_empty())
+
+func bag_count() -> int:
+	return bag_items().size()
+
 func add_item(item: Dictionary) -> bool:
-	if inventory.size() >= INVENTORY_LIMIT:
+	if bag_count() >= INVENTORY_LIMIT:
 		flash_text = "背包已滿"
 		levelup_flash = 1.0
 		return false
@@ -460,6 +467,8 @@ func add_item(item: Dictionary) -> bool:
 func toggle_equip(uid: int, target := "") -> String:
 	var info := slot_info(uid)
 	if not info.is_empty():
+		if bag_count() >= INVENTORY_LIMIT:
+			return "背包已滿，先騰出空位才能拆下。"
 		slots[info["cart"]][info["idx"]] = null
 		SFX.play(self, "ui_click", -6.0)
 		recalc_gear()

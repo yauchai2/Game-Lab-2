@@ -391,14 +391,15 @@ func _slot_cell(cart: String, idx: int, pos: Vector2, cell_size: Vector2) -> voi
 	b.gui_input.connect(_on_cell_input.bind(uid))
 
 func _inventory_grid() -> void:
-	_label("背包 %d／%d　配件裝進：%s" % [jax.inventory.size(), jax.INVENTORY_LIMIT, jax.skill_name_of(target_cart)], Vector2(244, 240), 9, Color("C9BC9A"))
+	var bag: Array = jax.bag_items()
+	_label("背包 %d／%d（已裝上的不佔格）　配件裝進：%s" % [bag.size(), jax.INVENTORY_LIMIT, jax.skill_name_of(target_cart)], Vector2(244, 240), 9, Color("C9BC9A"))
 	for n in jax.INVENTORY_LIMIT:
 		var pos := Vector2(244 + (n % 6) * 63, 254 + (n / 6) * 38)
-		if n >= jax.inventory.size():
+		if n >= bag.size():
 			_cell(pos, Vector2(60, 35), "", Color("2A261E"), Color("0F0E0B"), 1).disabled = true
 			continue
-		var it: Dictionary = jax.inventory[n]
-		var equipped: bool = not jax.slot_info(it["uid"]).is_empty()
+		var it: Dictionary = bag[n]
+		var equipped := false
 		var col: Color = RARITY_COLORS[it["rarity"]]
 		var selected: bool = it["uid"] == selected_uid
 		var text := "%s%s\n%s" % [TAGS[_item_cart(it)], "　已裝" if equipped else "", _short_name(it)]

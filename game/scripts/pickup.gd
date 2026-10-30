@@ -53,7 +53,7 @@ func _process(delta: float) -> void:
 	to.y = 0.0
 	var dist := to.length()
 	# 背包已滿時，物品留在原地，不會追著玩家；騰出空位再撿。
-	var blocked: bool = kind == "item" and player.inventory.size() >= player.INVENTORY_LIMIT
+	var blocked: bool = kind == "item" and player.bag_count() >= player.INVENTORY_LIMIT
 	blocked_now = blocked
 	if blocked:
 		full_msg_timer = maxf(full_msg_timer - delta, 0.0)
