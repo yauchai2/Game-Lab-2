@@ -444,7 +444,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				dash(_pick_point(get_viewport().get_mouse_position()))
 
-# WASD（或方向鍵）移動：鏡頭固定朝北，W＝畫面上方。
+# WASD（或方向鍵）移動：W＝畫面上方（鏡頭斜 45 度，所以世界方向跟鏡頭轉）。
 func _move_input() -> Vector3:
 	var v := Vector3.ZERO
 	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
@@ -455,6 +455,9 @@ func _move_input() -> Vector3:
 		v.x -= 1.0
 	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
 		v.x += 1.0
+	var cam := get_viewport().get_camera_3d()
+	if cam:
+		v = Basis(Vector3.UP, cam.global_rotation.y) * v
 	return v.normalized()
 
 func _pick_point(screen_pos: Vector2) -> Variant:
