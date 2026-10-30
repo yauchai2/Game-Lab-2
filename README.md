@@ -19,6 +19,7 @@
 ## 現有文件
 
 - `docs/art/style-guide.md` — 美術風格（由兩條參考影片整理）
+- `docs/art/asset-spec.md` — 換模型／場景嘅資產規格
 - `docs/design/characters.md` — 四人角色設定（唯一來源）
 - `docs/design/game-plan.md` — 企劃草案、待決定問題、工具路線
 - `docs/guides/godot-setup.md` — 安裝 Godot、打開同玩 Jax 試玩版
