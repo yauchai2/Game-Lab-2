@@ -8,6 +8,9 @@ var xp_back := ColorRect.new()
 var xp_fill := ColorRect.new()
 var info := Label.new()
 var banner := Label.new()
+var rank_label := Label.new()
+var style_back := ColorRect.new()
+var style_fill := ColorRect.new()
 var bench := VBoxContainer.new()
 var bench_msg := Label.new()
 
@@ -38,12 +41,29 @@ func _ready() -> void:
 	info.position = Vector2(8, 28)
 	info.add_theme_font_size_override("font_size", 10)
 	add_child(info)
+	rank_label.position = Vector2(590, 4)
+	rank_label.add_theme_font_size_override("font_size", 34)
+	rank_label.add_theme_color_override("font_outline_color", Color("292D3B"))
+	rank_label.add_theme_constant_override("outline_size", 6)
+	add_child(rank_label)
+	style_back.color = Color("292D3B")
+	style_back.position = Vector2(540, 44)
+	style_back.size = Vector2(92, 5)
+	add_child(style_back)
+	style_fill.color = Color("D6D573")
+	style_fill.position = Vector2(541, 45)
+	style_fill.size = Vector2(90, 3)
+	add_child(style_fill)
 	banner.position = Vector2(8, 150)
 	banner.add_theme_font_size_override("font_size", 20)
 	add_child(banner)
 
 func _process(_delta: float) -> void:
 	hp_fill.size.x = BAR_SIZE.x * float(jax.hp) / float(jax.max_hp)
+	var r: int = jax.rank_index()
+	rank_label.text = jax.RANKS[r]
+	rank_label.add_theme_color_override("font_color", [Color("BCC5D4"), Color("75C7B0"), Color("D6D573"), Color("CC6657")][r])
+	style_fill.size.x = 90.0 * fmod(jax.style, 25.0) / 25.0 if r < 3 else 90.0
 	xp_fill.size.x = BAR_SIZE.x * float(jax.xp) / float(jax.xp_to_next())
 	var cd: float = jax.skill_timer
 	var skill := "READY" if cd <= 0.0 else "%.1fs" % cd
@@ -51,8 +71,8 @@ func _process(_delta: float) -> void:
 	info.text = "Lv %d  HP %d/%d  Wave %d  Receipts %d\nDemolish [Q/RMB]: %s   Dash [Space]: %s   Cartridge [C]" % [jax.level, jax.hp, jax.max_hp, get_parent().wave, jax.receipts, skill, dash]
 	if jax.dead:
 		banner.text = "KO  -  press R to restart"
-	elif jax.levelup_flash > 0.0:
-		banner.text = "LEVEL UP!"
+	elif jax.flash_time > 0.0:
+		banner.text = jax.flash_text
 	else:
 		banner.text = ""
 

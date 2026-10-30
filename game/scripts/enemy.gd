@@ -40,6 +40,9 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO) -> void:
 		remove_from_group("enemies")
 		collision_layer = 0
 		_drop_loot()
+		var player := get_tree().get_first_node_in_group("player")
+		if player:
+			player.add_style(5.0)
 		var die := create_tween()
 		die.tween_property(self, "scale", Vector3(1.2, 0.01, 1.2), 0.25)
 		die.tween_callback(queue_free)

@@ -7,6 +7,7 @@ var damage := 6
 var life := 3.0
 
 func _ready() -> void:
+	add_to_group("projectiles")
 	var mi := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = Vector3(0.3, 0.3, 0.3)
