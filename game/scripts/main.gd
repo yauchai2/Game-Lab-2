@@ -1,5 +1,6 @@
 extends Node3D
 
+const SFX := preload("res://game/scripts/sfx.gd")
 const ENEMY_SCENE := preload("res://game/enemy.tscn")
 const BOSS_SCENE := preload("res://game/boss.tscn")
 const BOSS_POS := Vector3(0, 0.05, -17)
@@ -12,8 +13,17 @@ const CAMPS := [
 	{"pos": Vector3(9, 0, -12), "melee": 3, "ranged": 2},
 ]
 
+const MUSIC := {
+	"explore": preload("res://assets/audio/music/explore-dark-city.ogg"),
+	"boss": preload("res://assets/audio/music/boss-dark-forces.ogg"),
+}
+const MUSIC_DB := -14.0
+
 var boss: Node = null
 var victory := false
+var music := AudioStreamPlayer.new()
+var music_track := ""
+var music_on := true
 
 @onready var jax: CharacterBody3D = $Jax
 
@@ -22,6 +32,28 @@ func _ready() -> void:
 	for i in CAMPS.size():
 		_spawn_camp(i)
 	_spawn_boss()
+	add_child(music)
+	music.volume_db = MUSIC_DB
+	_play_music("explore")
+
+# 背景音樂：探索一首，頭目醒來換另一首；按 M 開關。
+func _play_music(track: String) -> void:
+	if track == music_track:
+		return
+	music_track = track
+	var stream: AudioStreamOggVorbis = MUSIC[track]
+	stream.loop = true
+	music.stream = stream
+	if music_on and track != "":
+		music.play()
+
+func _process(_delta: float) -> void:
+	if victory or jax.dead:
+		if music.playing:
+			music.stop()
+		return
+	if boss != null and is_instance_valid(boss) and boss.awake:
+		_play_music("boss")
 
 func _spawn_camp(index: int) -> void:
 	var camp: Dictionary = CAMPS[index]
@@ -46,7 +78,8 @@ func _spawn_boss() -> void:
 	boss.global_position = BOSS_POS
 	boss.defeated.connect(func() -> void:
 		victory = true
-		boss = null)
+		boss = null
+		SFX.play(self, "victory"))
 
 func camps_cleared() -> int:
 	var n := 0
@@ -56,6 +89,12 @@ func camps_cleared() -> int:
 	return n
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_M:
+		music_on = not music_on
+		if music_on and not victory and not jax.dead:
+			music.play()
+		else:
+			music.stop()
 	if victory and event is InputEventKey and event.pressed and event.keycode == KEY_R:
 		jax.save_progress(false)
 		get_tree().reload_current_scene()

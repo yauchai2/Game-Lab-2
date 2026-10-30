@@ -17,6 +17,7 @@ var cooldown := 0.0
 var knockback := Vector3.ZERO
 var _material := StandardMaterial3D.new()
 
+const SFX := preload("res://game/scripts/sfx.gd")
 const PICKUP := preload("res://game/scripts/pickup.gd")
 const PROJECTILE := preload("res://game/scripts/projectile.gd")
 
@@ -48,6 +49,7 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) ->
 			remove_from_group(camp)
 		collision_layer = 0
 		_drop_loot()
+		SFX.play(self, "enemy_die", -4.0)
 		var die := create_tween()
 		die.tween_property(self, "scale", Vector3(1.2, 0.01, 1.2), 0.25)
 		die.tween_callback(queue_free)
@@ -119,6 +121,7 @@ func _spawn_pickup(kind: String, value: int, offset: Vector3, item := {}) -> voi
 	p.global_position = global_position + offset + Vector3(0, 0.5, 0)
 
 func _shoot(dir: Vector3) -> void:
+	SFX.play(self, "shoot", -8.0)
 	var b := Node3D.new()
 	b.set_script(PROJECTILE)
 	b.direction = dir
