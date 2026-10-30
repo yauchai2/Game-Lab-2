@@ -105,7 +105,7 @@ func _process(_delta: float) -> void:
 	var cd: float = jax.skill_timer
 	var skill := "就緒" if cd <= 0.0 else "%.1fs" % cd
 	var dash: String = "就緒" if jax.dash_timer <= 0.0 else "%.1fs" % jax.dash_timer
-	info.text = "等級 %d  生命 %d/%d  第 %d 波  單據 %d\n拆場［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］" % [jax.level, jax.hp, jax.max_hp, get_parent().wave, jax.receipts, skill, dash]
+	info.text = "等級 %d  生命 %d/%d  據點 %d/%d  單據 %d\n拆場［Q／右鍵］：%s   衝刺［空白鍵］：%s   卡匣［C］" % [jax.level, jax.hp, jax.max_hp, get_parent().camps_cleared(), get_parent().CAMPS.size(), jax.receipts, skill, dash]
 	var b: Variant = get_parent().boss
 	var boss_alive: bool = b != null and is_instance_valid(b) and b.hp > 0
 	boss_back.visible = boss_alive
@@ -116,7 +116,7 @@ func _process(_delta: float) -> void:
 	if get_parent().victory:
 		banner.text = "通關！　按 R 再玩一次"
 	elif jax.dead:
-		banner.text = "倒下了 － 按 R 重新開始"
+		banner.text = "倒下了（保留等級同配件，單據減半）－ 按 R 重新開始"
 	elif jax.levelup_flash > 0.0 and not bench.visible:
 		banner.text = jax.flash_text
 	else:

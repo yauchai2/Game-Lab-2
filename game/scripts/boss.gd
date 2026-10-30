@@ -24,9 +24,13 @@ func _ready() -> void:
 	base_color = Color("CC6657")
 	super._ready()
 	add_to_group("boss")
+	aggro_range = 10.0
 
 func _physics_process(delta: float) -> void:
 	if hp <= 0:
+		return
+	if not awake:
+		_check_aggro()
 		return
 	cooldown = maxf(cooldown - delta, 0.0)
 	knockback = knockback.move_toward(Vector3.ZERO, 30.0 * delta)

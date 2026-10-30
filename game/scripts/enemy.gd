@@ -10,6 +10,9 @@ extends CharacterBody3D
 @export var base_color := Color("8C9871")
 
 var hp := 40
+var awake := true
+var aggro_range := 9.0
+var camp := ""
 var cooldown := 0.0
 var knockback := Vector3.ZERO
 var _material := StandardMaterial3D.new()
@@ -22,6 +25,8 @@ const PROJECTILE := preload("res://game/scripts/projectile.gd")
 func _ready() -> void:
 	hp = max_hp
 	add_to_group("enemies")
+	if camp != "":
+		add_to_group(camp)
 	_material.albedo_color = base_color
 	mesh.material_override = _material
 
@@ -29,6 +34,7 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) ->
 	if hp <= 0:
 		return
 	hp -= amount
+	wake()
 	var away := global_position - from_pos
 	away.y = 0.0
 	if away.length() > 0.01:
@@ -38,14 +44,32 @@ func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) ->
 	tween.tween_property(_material, "albedo_color", base_color, 0.2)
 	if hp <= 0:
 		remove_from_group("enemies")
+		if camp != "":
+			remove_from_group(camp)
 		collision_layer = 0
 		_drop_loot()
 		var die := create_tween()
 		die.tween_property(self, "scale", Vector3(1.2, 0.01, 1.2), 0.25)
 		die.tween_callback(queue_free)
 
+# 敵群平時站定，玩家行近（或同營敵人被驚動）先會一齊追上嚟。
+func wake() -> void:
+	if awake:
+		return
+	awake = true
+	if camp != "":
+		get_tree().call_group(camp, "wake")
+
+func _check_aggro() -> void:
+	var player := get_tree().get_first_node_in_group("player")
+	if player and not player.dead and global_position.distance_to(player.global_position) <= aggro_range:
+		wake()
+
 func _physics_process(delta: float) -> void:
 	if hp <= 0:
+		return
+	if not awake:
+		_check_aggro()
 		return
 	cooldown = maxf(cooldown - delta, 0.0)
 	knockback = knockback.move_toward(Vector3.ZERO, 20.0 * delta)

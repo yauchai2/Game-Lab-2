@@ -51,9 +51,41 @@ var attack_swing := 0.0
 @onready var arm_l: Node3D = model.find_child("ArmL", true, false)
 @onready var arm_r: Node3D = model.find_child("ArmR", true, false)
 
+const PROGRESS := preload("res://game/scripts/progress.gd")
+
 func _ready() -> void:
-	hp = max_hp
 	add_to_group("player")
+	_load_progress()
+	hp = max_hp
+
+# 死咗保留等級、背包、已裝配件；單據損失一半。
+func save_progress(lose_half_receipts := true) -> void:
+	var equipped := {}
+	for cart in slots:
+		equipped[cart] = slots[cart].map(func(it: Variant) -> int: return -1 if it == null else it["uid"])
+	PROGRESS.data = {
+		"level": level, "xp": xp, "max_hp": max_hp, "skill_damage": skill_damage,
+		"receipts": int(receipts * 0.5) if lose_half_receipts else receipts,
+		"inventory": inventory.duplicate(true), "equipped": equipped,
+		"next_uid": next_uid, "item_rolls": item_rolls,
+	}
+
+func _load_progress() -> void:
+	var d: Dictionary = PROGRESS.data
+	if d.is_empty():
+		return
+	level = d["level"]
+	xp = d["xp"]
+	max_hp = d["max_hp"]
+	skill_damage = d["skill_damage"]
+	receipts = d["receipts"]
+	inventory = d["inventory"].duplicate(true)
+	next_uid = d["next_uid"]
+	item_rolls = d["item_rolls"]
+	for cart in slots:
+		for i in slots[cart].size():
+			var uid: int = d["equipped"][cart][i]
+			slots[cart][i] = find_item(uid) if uid >= 0 else null
 
 func xp_to_next() -> int:
 	return 30 * level
@@ -134,7 +166,7 @@ func should_drop_item(from_ranged: bool) -> bool:
 	item_rolls += 1
 	if item_rolls <= 2:
 		return true
-	return randf() < (0.35 if from_ranged else 0.25)
+	return randf() < (0.45 if from_ranged else 0.3)
 
 func item_name(item: Dictionary) -> String:
 	return "%s・%s" % [RARITY_NAMES[item["rarity"]], ITEM_TYPES[item["type"]]["name"]]
@@ -256,6 +288,7 @@ func take_damage(amount: int) -> void:
 	hp = maxi(hp - amount, 0)
 	if hp == 0:
 		dead = true
+		save_progress()
 		has_target = false
 		windup_left = -1.0
 		model.rotation.x = -1.4
