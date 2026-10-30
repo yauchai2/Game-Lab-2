@@ -20,6 +20,7 @@
 
 - `docs/art/style-guide.md` — 美術風格（由兩條參考影片整理）
 - `docs/design/world.md` — 世界觀（疊港、勢力、衝突、黑色幽默基調）
+- `docs/design/differentiation-ideas.md` — 同 PoE2 嘅差異化研究同點子（草案）
 - `docs/design/characters.md` — 四人角色設定（唯一來源，含背景、口吻、成長弧線）
 - `docs/design/game-plan.md` — 企劃草案、待決定問題、工具路線
 - `docs/guides/godot-setup.md` — 安裝 Godot、打開同玩 Jax 試玩版
