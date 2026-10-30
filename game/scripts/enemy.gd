@@ -15,6 +15,7 @@ var aggro_range := 9.0
 var camp := ""
 var cooldown := 0.0
 var knockback := Vector3.ZERO
+const PAINTER := preload("res://game/scripts/painter.gd")
 var _material := StandardMaterial3D.new()
 
 const SFX := preload("res://game/scripts/sfx.gd")
@@ -48,6 +49,8 @@ func _ready() -> void:
 		add_to_group(camp)
 	_material.albedo_color = base_color
 	mesh.material_override = _material
+	_material.albedo_texture = null
+	PAINTER.apply_material(_material)
 	if show_bar:
 		_make_bar()
 

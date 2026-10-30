@@ -33,6 +33,7 @@ var base_speed := 6.0
 var gear_hp_bonus := 0
 var next_uid := 1
 const TALENTS := preload("res://game/scripts/talents.gd")
+const PAINTER := preload("res://game/scripts/painter.gd")
 var talents: Array = []
 var talent_bonus := 0
 var item_rolls := 0
@@ -117,6 +118,7 @@ func _ready() -> void:
 	char_id = PROGRESS.character
 	if char_id == "skye":
 		_become_skye()
+	PAINTER.paint(model)
 	_load_progress()
 	if PROGRESS.data.is_empty():
 		_give_starter_weapon()
