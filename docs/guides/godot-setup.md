@@ -221,6 +221,10 @@
 - 效果在 `jax.gd`：`talent_total(kind)` 併入 `gear_total`（傷害、攻速、生命、護甲、抗性等），另有韌性上限 `poise_cap()`、翻滾 `roll_max()`／`roll_recharge_time()`、完美格擋時間、汽水回血、補給充能、重擊破防（`enemy.gd`）。
 - 存檔：`talents`、`talent_bonus` 存入 `progress.gd` 的存檔資料；舊存檔沒有這兩項也能讀。
 
+## 卡通渲染
+
+全場景使用卡通渲染：材質改用分層光影（無高光），再依深度圖畫深色輪廓線。實作在 `game/scripts/toon.gd`（由 `main.gd` 加入場景），輪廓線是相機前的一塊全螢幕方塊加深度圖著色器（Compatibility 渲染器可用）。設定頁的「卡通光影」「輪廓線」可分別開關。線條粗細、靈敏度可在 `toon.gd` 的 `thickness`、`threshold` 調整。
+
 ## 設定頁
 
 - 標題畫面按「設定」，或遊戲中按 Esc（會暫停，可回標題）。介面在 `game/scripts/settings_menu.gd`，資料與套用在 `game_settings.gd`，存檔位置 `user://settings.cfg`。

@@ -59,6 +59,8 @@ const SETTINGS_MENU := preload("res://game/scripts/settings_menu.gd")
 func _fit_3d_resolution() -> void:
 	GS.fit_3d(get_tree())
 
+var toon: Node
+
 func _ready() -> void:
 	GS.apply(get_tree())
 	get_tree().root.size_changed.connect(_fit_3d_resolution)
@@ -79,6 +81,9 @@ func _ready() -> void:
 	var fisheye := CanvasLayer.new()
 	fisheye.set_script(preload("res://game/scripts/fisheye.gd"))
 	add_child(fisheye)
+	toon = Node.new()
+	toon.set_script(preload("res://game/scripts/toon.gd"))
+	add_child(toon)
 	add_child(music)
 	music.volume_db = MUSIC_DB
 	music.bus = "Music" if AudioServer.get_bus_index("Music") >= 0 else "Master"
