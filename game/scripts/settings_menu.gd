@@ -24,7 +24,6 @@ const RIGHT := [
 	["zoom_speed", "滾輪縮放速度", "cycle", ["慢", "標準", "快"]],
 	["hide_common", "隱藏白色掉落名牌", "cycle", ["關", "開"]],
 	["toon", "卡通光影", "cycle", ["關", "開"]],
-	["outline", "輪廓線", "cycle", ["關", "開"]],
 ]
 const KEYS_TEXT := "操作\nWASD 移動　空白鍵 翻滾\nQ／E／R／F 技能　Shift 格擋\n滑鼠中鍵拖曳 轉鏡頭　滾輪 縮放\nC 工作枱　Z 隱藏白色名牌\nM 音樂　V 魚眼\nEsc 設定"
 

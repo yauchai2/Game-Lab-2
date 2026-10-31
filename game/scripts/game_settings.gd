@@ -11,7 +11,7 @@ const ZOOM_STEP := [0.05, 0.1, 0.18]
 const DEFAULTS := {
 	"master": 100, "music": 70, "sfx": 100,
 	"fullscreen": 0, "render": 1, "fisheye": 2, "shadows": 1, "vsync": 1,
-	"shake": 2, "hit_stop": 1, "damage_numbers": 1, "zoom_speed": 1, "hide_common": 0, "toon": 1, "outline": 1,
+	"shake": 2, "hit_stop": 1, "damage_numbers": 1, "zoom_speed": 1, "hide_common": 0, "toon": 1,
 }
 
 ## 調色強度（0＝關）。暫時不調色，之後按章節內容設定，由章節程式改這個值。
