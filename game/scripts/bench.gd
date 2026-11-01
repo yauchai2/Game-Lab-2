@@ -439,7 +439,7 @@ func _describe(item: Dictionary) -> String:
 		t += "[color=#9A927C]%s[/color]\n" % GEAR_NAMES[cart]
 		if cart == "weapon":
 			var w: Dictionary = jax.weapon_stats_of(item)
-			t += "%s\n" % ("近戰・自動揮擊身邊敵人" if def["kind"] == "melee" else ("遠程・自動射擊最近的 3 個敵人" if def.get("pellets", 1) > 1 else "遠程・自動射擊最近的敵人"))
+			t += "%s\n" % ("近戰・左鍵朝滑鼠方向三段連擊" if def["kind"] == "melee" else ("遠程・左鍵朝滑鼠方向射擊（可同時打中最多 3 個敵人）" if def.get("pellets", 1) > 1 else "遠程・左鍵朝滑鼠方向射擊"))
 			t += "傷害 %d　間隔 %.2f 秒　射程 %.1f 米\n" % [roundi(w["dmg"]), w["cd"], w["reach"]]
 	else:
 		var cname: String = "技能配件" if cart == "demolish" else "滑板翻滾"

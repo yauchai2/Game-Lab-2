@@ -45,6 +45,27 @@ var dash_hit: Array = []
 var trail_accum := 0.0
 var attack_timer := 0.0
 var attack_swing := 0.0
+# --- 手感：手動連擊（左鍵，可按住）。第 3 下為重擊。---
+const COMBO_DMG := [0.7, 0.7, 1.6]
+const COMBO_KNOCK := [3.0, 3.0, 10.0]
+const COMBO_STOP := [0.02, 0.02, 0.07]
+const COMBO_CD := [0.65, 0.65, 1.2]
+const COMBO_LUNGE := [6.0, 6.0, 9.0]
+const COMBO_RESET := 0.5
+const ATTACK_ARC_COS := 0.17
+const INPUT_BUFFER := 0.18
+var atk_held := false
+var atk_buffer := 0.0
+var combo_step := 0
+var combo_idle := 0.0
+var lunge_left := 0.0
+var lunge_dir := Vector3.ZERO
+var lunge_speed := 0.0
+var swing_left_arm := 0.0  # 1.0＝這一下用左手揮（連擊左右手交替）
+var last_dash_ms := -100000
+var hitstop_until := 0
+var last_stop_ms := -100000
+const DASH_STRIKE_WINDOW_MS := 600
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -57,6 +78,7 @@ const SFX := preload("res://game/scripts/sfx.gd")
 const FLOATY := preload("res://game/scripts/floaty.gd")
 const FISHEYE := preload("res://game/scripts/fisheye.gd")
 const HITFX := preload("res://game/scripts/hitfx.gd")
+const GS := preload("res://game/scripts/game_settings.gd")
 const SKYE_MODEL := preload("res://assets/characters/skye.glb")
 
 var char_id := "jax"
@@ -638,13 +660,20 @@ func _perfect_block(source: Node) -> void:
 		if source.has_method("poise_damage"):
 			source.poise_damage(60.0)
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		atk_held = false
+
 func _unhandled_input(event: InputEvent) -> void:
 	if dead:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_R:
 			get_tree().reload_current_scene()
 		return
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_RIGHT:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			atk_held = true
+			atk_buffer = INPUT_BUFFER
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			use_skill()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_Q:
@@ -655,6 +684,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			use_extra("skill_r")
 		elif event.keycode == KEY_F:
 			use_extra("skill_f")
+		elif event.keycode == KEY_F3:
+			_toggle_debug()
 		elif event.keycode == KEY_1:
 			use_flask("soda")
 		elif event.keycode == KEY_2:
@@ -717,6 +748,7 @@ func dash(toward: Variant = null) -> void:
 	roll_charges -= 1
 	dash_timer = dash_cooldown
 	stagger_left = 0.0
+	last_dash_ms = Time.get_ticks_msec()
 	dashed.emit()
 	SFX.play(self, "dash", -4.0)
 	has_target = false
@@ -948,8 +980,18 @@ func _explode(pos: Vector3, radius: float, dmg: int) -> void:
 
 # Brief freeze on impact: the cheap trick that makes hits feel heavy.
 func _hit_stop(duration: float) -> void:
-	Engine.time_scale = 0.08
-	get_tree().create_timer(duration, true, false, true).timeout.connect(func() -> void: Engine.time_scale = 1.0)
+	if GS.v["hit_stop"] == 0:
+		return  # 設定頁關閉頓幀
+	# 頓幀太密會變成「慢動作」：兩次頓幀之間至少相隔 0.25 秒，並避免與敵人自身的頓幀重疊。
+	var now := Time.get_ticks_msec()
+	if HITFX.stopping or now - last_stop_ms < 250:
+		return
+	last_stop_ms = now
+	hitstop_until = now + int(duration * 1000.0)
+	Engine.time_scale = 0.12
+	get_tree().create_timer(duration, true, false, true).timeout.connect(func() -> void:
+		if Time.get_ticks_msec() >= hitstop_until and not HITFX.stopping:
+			Engine.time_scale = 1.0)
 
 func _spawn_zone(center: Vector3, radius: float, life: float, damage: int, color: Color) -> void:
 	var zone := Node3D.new()
@@ -978,7 +1020,39 @@ func _spawn_shockwave(center: Vector3, radius: float, color := Color("CC6657"), 
 	tween.tween_property(ring, "scale", Vector3(radius, 1.0, radius), duration)
 	tween.tween_callback(ring.queue_free)
 
+# 安全網：任何頓幀都不應持續超過 0.5 秒；若時間縮放卡在慢速，強制還原。
+func _watch_time_scale() -> void:
+	if Engine.time_scale >= 1.0:
+		return
+	var now := Time.get_ticks_msec()
+	if now > hitstop_until + 400 and now > HITFX.last_stop + 600:
+		Engine.time_scale = 1.0
+
+# F3：顯示 FPS 與時間縮放，用來分辨「慢動作」是掉幀還是時間縮放。
+var _dbg_layer: CanvasLayer = null
+var _dbg_label: Label = null
+
+func _toggle_debug() -> void:
+	if _dbg_layer != null:
+		_dbg_layer.queue_free()
+		_dbg_layer = null
+		_dbg_label = null
+		return
+	_dbg_layer = CanvasLayer.new()
+	_dbg_label = Label.new()
+	_dbg_label.position = Vector2(8, 8)
+	_dbg_label.add_theme_font_size_override("font_size", 18)
+	_dbg_label.add_theme_color_override("font_color", Color("E6D26A"))
+	_dbg_layer.add_child(_dbg_label)
+	add_child(_dbg_layer)
+
+func _update_debug() -> void:
+	if _dbg_label != null:
+		_dbg_label.text = "FPS %d　時間縮放 %.2f　敵人 %d" % [Engine.get_frames_per_second(), Engine.time_scale, get_tree().get_nodes_in_group("enemies").size()]
+
 func _physics_process(delta: float) -> void:
+	_watch_time_scale()
+	_update_debug()
 	skill_timer = maxf(skill_timer - delta, 0.0)
 	for k in extra_timers:
 		extra_timers[k] = maxf(extra_timers[k] - delta, 0.0)
@@ -1028,9 +1102,15 @@ func _physics_process(delta: float) -> void:
 			gd.y = 0.0
 			if gd.length() > 0.2:
 				look_at(global_position + gd, Vector3.UP)
+	atk_buffer = maxf(atk_buffer - delta, 0.0)
+	lunge_left = maxf(lunge_left - delta, 0.0)
+	combo_idle += delta
+	if combo_idle > COMBO_RESET:
+		combo_step = 0
 	if dash_left > 0.0:
 		dash_left -= delta
 		move = dash_dir * dash_speed
+		lunge_left = 0.0
 		_dash_effects(delta)
 	elif stagger_left > 0.0:
 		model.rotation.x = lerpf(model.rotation.x, 0.5, 0.4)
@@ -1045,10 +1125,17 @@ func _physics_process(delta: float) -> void:
 			move = dir * speed * (1.4 if buff_left > 0.0 else 1.0) * (0.4 if guarding else 1.0)
 			if not guarding:
 				look_at(global_position + dir, Vector3.UP)
+		if atk_held or atk_buffer > 0.0:
+			move *= 0.65  # 出手時略微減速，增加重量感
+			if not guarding:
+				look_at(global_position + _aim_dir(), Vector3.UP)  # 出手時面向滑鼠
+		if lunge_left > 0.0:
+			move += lunge_dir * lunge_speed
 	if windup_left < 0.0 and dash_left <= 0.0 and stagger_left <= 0.0 and not guarding:
-		_auto_attack()
+		_manual_attack()
 	if windup_left < 0.0:
-		model.rotation.x = lerpf(model.rotation.x, -0.25 if dash_left > 0.0 else 0.0, 0.3)
+		# 揮擊時身體向前傾，收招後彈回
+		model.rotation.x = lerpf(model.rotation.x, -0.25 if dash_left > 0.0 else -0.3 * attack_swing, 0.3)
 	velocity.x = move.x
 	velocity.z = move.z
 	if not is_on_floor():
@@ -1056,47 +1143,175 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_animate_limbs(delta, move.length() > 0.1 and dash_left <= 0.0)
 
-# 普通攻擊：由武器決定（近戰揮擊／遠程射擊），附近有敵人就自動出手，沒有字卡，邊走邊打。
-func _auto_attack() -> void:
-	if attack_timer > 0.0:
+# 滑鼠所指方向（水平）。
+func _aim_dir() -> Vector3:
+	var p: Variant = _pick_point(get_viewport().get_mouse_position())
+	if p != null:
+		var d: Vector3 = p - global_position
+		d.y = 0.0
+		if d.length() > 0.2:
+			return d.normalized()
+	var f := -global_transform.basis.z
+	f.y = 0.0
+	return f.normalized()
+
+# 普通攻擊：手動（左鍵可按住），朝滑鼠方向；有緩衝，收招後立即接下一下。
+func _manual_attack() -> void:
+	if attack_timer > 0.0 or not (atk_held or atk_buffer > 0.0):
 		return
+	atk_buffer = 0.0
+	var aim := _aim_dir()
+	look_at(global_position + aim, Vector3.UP)
 	var w := weapon_stats()
 	if w["kind"] == "ranged":
-		_shoot_nearest(w)
+		_shoot_aimed(w, aim)
 	else:
-		_melee_swing(w)
+		aim = _assist_aim(aim, w["reach"])
+		look_at(global_position + aim, Vector3.UP)
+		_melee_swing(w, aim)
 
-func _melee_swing(w: Dictionary) -> void:
-	var hit := 0
+# 輕度瞄準輔助（《哈迪斯》式）：滑鼠方向約 45 度內有敵人，就把出手方向拉向最近的那個。
+func _assist_aim(aim: Vector3, reach: float) -> Vector3:
+	var best: Node3D = null
+	var best_dist := reach * 1.5
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var d: Vector3 = enemy.global_position - global_position
 		d.y = 0.0
-		if d.length() <= w["reach"]:
-			enemy.take_damage(roundi(w["dmg"]), global_position, 3.0)
-			hit += 1
-	if hit == 0:
-		return
-	attack_timer = w["cd"]
-	attack_swing = 1.0
-	SFX.play(self, "hit", -8.0, 0.12)
-	_spawn_shockwave(global_position, w["reach"], Color("E7DFC9"), 0.18)
+		var dist := d.length()
+		if dist < 0.3 or dist > best_dist:
+			continue
+		if aim.dot(d / dist) < 0.7:
+			continue
+		best = enemy
+		best_dist = dist
+	if best == null:
+		return aim
+	var toward: Vector3 = best.global_position - global_position
+	toward.y = 0.0
+	return (aim * 0.35 + toward.normalized() * 0.65).normalized()
 
-func _shoot_nearest(w: Dictionary) -> void:
+# 揮擊弧光：扇形白光，標示實際判定範圍；重擊與衝刺斬為暖黃色。
+var _arc_mesh: ArrayMesh = null
+
+func _get_arc_mesh() -> ArrayMesh:
+	if _arc_mesh != null:
+		return _arc_mesh
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 14
+	var half := deg_to_rad(52.0)
+	for i in n:
+		var a0 := lerpf(-half, half, float(i) / n)
+		var a1 := lerpf(-half, half, float(i + 1) / n)
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(Vector3(sin(a0), 0.0, -cos(a0)))
+		st.add_vertex(Vector3(sin(a1), 0.0, -cos(a1)))
+	_arc_mesh = st.commit()
+	return _arc_mesh
+
+# 弧光節點用「物件池」重複使用，不再每下攻擊新建節點與材質（減少卡頓）。
+var _slash_pool: Array = []
+var _slash_next := 0
+const SLASH_POOL_SIZE := 4
+
+func _make_slash_node() -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _get_arc_mesh()
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1, 1, 1, 0.55)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = m
+	mi.visible = false
+	get_parent().add_child(mi)
+	return mi
+
+func _spawn_slash(aim: Vector3, reach: float, heavy: bool) -> void:
+	if _slash_pool.is_empty():
+		for k in SLASH_POOL_SIZE:
+			_slash_pool.append(_make_slash_node())
+	var mi: MeshInstance3D = _slash_pool[_slash_next]
+	_slash_next = (_slash_next + 1) % SLASH_POOL_SIZE
+	var m: StandardMaterial3D = mi.material_override
+	var col := Color("E6D26A") if heavy else Color("F4F0E4")
+	col.a = 0.55
+	m.albedo_color = col
+	mi.global_position = global_position + Vector3(0, 0.5, 0)
+	mi.look_at(mi.global_position + aim, Vector3.UP)
+	mi.scale = Vector3(reach * 0.6, 1.0, reach * 0.6)
+	mi.visible = true
+	if mi.has_meta("tw"):
+		var old: Variant = mi.get_meta("tw")
+		if old is Tween and old.is_valid():
+			old.kill()
+	var tw := mi.create_tween().set_parallel(true)
+	mi.set_meta("tw", tw)
+	tw.tween_property(mi, "scale", Vector3(reach, 1.0, reach), 0.14)
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.14)
+	tw.chain().tween_callback(func() -> void: mi.visible = false)
+
+func _melee_swing(w: Dictionary, aim: Vector3) -> void:
+	var step := combo_step
+	var hit := 0
+	var kills := 0
+	# 衝刺後立即出手＝衝刺斬：更遠前衝、傷害 +30%。
+	var dash_strike := Time.get_ticks_msec() - last_dash_ms < DASH_STRIKE_WINDOW_MS
+	var dmg := roundi(w["dmg"] * COMBO_DMG[step] * (1.3 if dash_strike else 1.0))
+	var reach: float = w["reach"] * (1.25 if step == 2 else 1.0)
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		var d: Vector3 = enemy.global_position - global_position
+		d.y = 0.0
+		var dist := d.length()
+		if dist > reach:
+			continue
+		if dist > 0.6 and aim.dot(d / dist) < ATTACK_ARC_COS:
+			continue
+		enemy.take_damage(dmg, global_position, COMBO_KNOCK[step], step == 2)  # 第 3 下為重擊：破甲、削韌性
+		hit += 1
+		if enemy.hp <= 0:
+			kills += 1
+	attack_timer = w["cd"] * COMBO_CD[step]
+	attack_swing = 1.0
+	swing_left_arm = 1.0 if step == 1 else 0.0
+	lunge_dir = aim
+	lunge_speed = COMBO_LUNGE[step] * (1.8 if dash_strike else 1.0)
+	lunge_left = 0.12 if dash_strike else 0.08
+	combo_idle = 0.0
+	SFX.play(self, "hit" if hit > 0 else "dash", -8.0, 0.12)
+	_spawn_slash(aim, reach, step == 2 or dash_strike)
+	if hit > 0:
+		_hit_stop(COMBO_STOP[step] + 0.02 * kills)
+		# 每個命中的敵人本身已有火花與輕震；這裡只為重擊與衝刺斬額外加強，並遵從設定頁的震動倍率。
+		if step == 2 or dash_strike:
+			HITFX.shake(self, 0.14)
+			var cam := get_viewport().get_camera_3d()
+			if cam and cam.has_method("add_kick"):
+				cam.add_kick(aim, 0.3 * GS.SHAKE_MULT[GS.v["shake"]])
+	combo_step = (step + 1) % COMBO_DMG.size()
+
+func _shoot_aimed(w: Dictionary, aim: Vector3) -> void:
 	var targets: Array = []
 	for enemy in get_tree().get_nodes_in_group("enemies"):
-		var d: float = enemy.global_position.distance_to(global_position)
-		if d <= w["reach"]:
-			targets.append([d, enemy])
-	if targets.is_empty():
-		return
+		var d: Vector3 = enemy.global_position - global_position
+		d.y = 0.0
+		var dist := d.length()
+		if dist <= w["reach"] and dist > 0.1 and aim.dot(d / dist) > 0.9:
+			targets.append([dist, enemy])
 	targets.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
 	attack_timer = w["cd"]
 	attack_swing = 1.0
+	swing_left_arm = 0.0
 	SFX.play(self, "shoot", -8.0, 0.1)
+	var origin := global_position + Vector3(0, 0.9, 0)
+	if targets.is_empty():
+		_tracer(origin, origin + aim * w["reach"])
+		return
 	for i in mini(w["pellets"], targets.size()):
 		var enemy: Node3D = targets[i][1]
 		enemy.take_damage(roundi(w["dmg"]), global_position, 2.0)
-		_tracer(global_position + Vector3(0, 0.9, 0), enemy.global_position + Vector3(0, 0.8, 0))
+		_tracer(origin, enemy.global_position + Vector3(0, 0.8, 0))
+	_hit_stop(0.03)
 
 func _tracer(a: Vector3, b: Vector3) -> void:
 	var mi := MeshInstance3D.new()
@@ -1119,7 +1334,7 @@ func _animate_limbs(delta: float, moving: bool) -> void:
 	if moving:
 		anim_time += delta * speed * 1.8
 		swing = sin(anim_time) * 0.6
-	for pair in [[leg_l, swing], [leg_r, -swing], [arm_l, -swing * 0.8], [arm_r, swing * 0.8 - 1.6 * attack_swing]]:
+	for pair in [[leg_l, swing], [leg_r, -swing], [arm_l, -swing * 0.8 - 1.6 * attack_swing * swing_left_arm], [arm_r, swing * 0.8 - 1.6 * attack_swing * (1.0 - swing_left_arm)]]:
 		var limb: Node3D = pair[0]
 		if limb:
 			limb.rotation.x = lerpf(limb.rotation.x, pair[1], 0.4)

@@ -1,5 +1,5 @@
 extends Camera3D
-## 自由視角鏡頭：預設 45 度斜向等距俯視；按住滑鼠中鍵拖曳（或按 [ ]）轉動，滾輪縮放。
+## 固定視角鏡頭：45 度斜向等距俯視，角度固定、不可旋轉（Alan 2026-11-01 決定）；只保留滾輪縮放。
 ## 移動時平滑跟隨並稍微領前，頭目戰自動拉遠。
 
 @export var follow: Node3D
@@ -12,8 +12,6 @@ extends Camera3D
 @export var zoom_max := 2.2
 @export var boss_zoom := 1.35
 
-const PITCH_MIN := 18.0
-const PITCH_MAX := 75.0
 
 var shake := 0.0
 const GS := preload("res://game/scripts/game_settings.gd")
@@ -21,13 +19,18 @@ var zoom := 1.0
 var zoom_goal := 1.0
 var boss_blend := 0.0
 var lead := Vector3.ZERO
-var dragging := false
 ## 過場：設定後鏡頭固定在目標旁邊並看向目標（高架橋追逐演出用）。
 var cine_target: Node3D = null
 var cine_offset := Vector3.ZERO
 
 func add_shake(amount: float) -> void:
 	shake = maxf(shake, amount)
+
+## 重擊時鏡頭朝攻擊方向輕推一下再彈回（有方向的震動，比隨機亂晃更有重量）。
+var kick := Vector3.ZERO
+
+func add_kick(dir: Vector3, amount: float) -> void:
+	kick = dir.normalized() * amount
 
 func _ready() -> void:
 	_apply_rotation()
@@ -43,15 +46,10 @@ func _orbit_offset() -> Vector3:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_MIDDLE:
-			dragging = event.pressed
-		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		if event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			zoom_goal = clampf(zoom_goal * (1.0 - GS.ZOOM_STEP[GS.v["zoom_speed"]]), zoom_min, zoom_max)
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom_goal = clampf(zoom_goal * (1.0 + GS.ZOOM_STEP[GS.v["zoom_speed"]]), zoom_min, zoom_max)
-	elif event is InputEventMouseMotion and dragging:
-		yaw_deg = wrapf(yaw_deg - event.relative.x * 0.25, 0.0, 360.0)
-		pitch_deg = clampf(pitch_deg + event.relative.y * 0.2, PITCH_MIN, PITCH_MAX)
 
 func _process(delta: float) -> void:
 	if cine_target != null:
@@ -59,12 +57,6 @@ func _process(delta: float) -> void:
 		look_at(cine_target.global_position + Vector3(0, 1.2, 0))
 		shake = move_toward(shake, 0.0, delta * 1.5)
 		return
-	var turn := 0.0
-	if Input.is_key_pressed(KEY_BRACKETLEFT):
-		turn += 1.0
-	if Input.is_key_pressed(KEY_BRACKETRIGHT):
-		turn -= 1.0
-	yaw_deg = wrapf(yaw_deg + turn * 90.0 * delta, 0.0, 360.0)
 	_apply_rotation()
 	if follow:
 		var boss: Variant = get_parent().get("boss")
@@ -75,7 +67,8 @@ func _process(delta: float) -> void:
 		vel.y = 0.0
 		var lead_goal := vel.normalized() * lead_distance if vel.length() > 0.5 else Vector3.ZERO
 		lead = lead.lerp(lead_goal, 1.0 - exp(-3.0 * delta))
-		var goal := follow.global_position + lead + _orbit_offset() * lerpf(1.0, boss_zoom, boss_blend)
+		kick = kick.move_toward(Vector3.ZERO, delta * 2.5)
+		var goal := follow.global_position + kick + lead + _orbit_offset() * lerpf(1.0, boss_zoom, boss_blend)
 		global_position = global_position.lerp(goal, 1.0 - exp(-smoothing * delta))
 	shake = move_toward(shake, 0.0, delta * 1.5)
 	h_offset = randf_range(-1.0, 1.0) * shake

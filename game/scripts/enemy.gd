@@ -15,6 +15,9 @@ var aggro_range := 9.0
 var camp := ""
 var cooldown := 0.0
 var knockback := Vector3.ZERO
+## 近戰預警：出手前有一小段前搖（身體變紅、地上出現紅圈），玩家可以翻滾躲開。
+const MELEE_WINDUP := 0.5
+var windup_left := -1.0
 const PAINTER := preload("res://game/scripts/painter.gd")
 var _material := StandardMaterial3D.new()
 
@@ -192,6 +195,7 @@ func _physics_process(delta: float) -> void:
 	if poise_wait <= 0.0 and poise < poise_max:
 		poise = minf(poise + poise_max * 0.3 * delta, poise_max)
 	if stagger_left > 0.0:
+		windup_left = -1.0
 		stagger_left -= delta
 		_material.albedo_color = Color("9FB6E8")
 		if stagger_left <= 0.0:
@@ -216,18 +220,50 @@ func _physics_process(delta: float) -> void:
 			if dist <= 11.0 and cooldown <= 0.0:
 				cooldown = 2.0
 				_shoot(to.normalized())
+		elif windup_left >= 0.0:
+			windup_left -= delta
+			# 前搖期間原地不動，身體閃紅
+			_material.albedo_color = Color("E85A4F") if int(windup_left * 14.0) % 2 == 0 else base_color
+			if windup_left < 0.0:
+				_material.albedo_color = base_color
+				cooldown = attack_cooldown
+				if dist <= attack_range + 0.7:
+					player.take_damage(attack_damage, "phys", self)
+					SFX.play(self, "hit", -6.0, 0.1)
 		elif dist > attack_range:
 			move = to.normalized() * speed
 		elif cooldown <= 0.0:
-			cooldown = attack_cooldown
-			player.take_damage(attack_damage, "phys", self)
-		if dist > 0.01:
+			windup_left = MELEE_WINDUP
+			_spawn_telegraph()
+		if dist > 0.01 and windup_left < 0.0:
 			look_at(global_position + to, Vector3.UP)
 	velocity.x = move.x + knockback.x
 	velocity.z = move.z + knockback.z
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	move_and_slide()
+
+# 地上紅圈：標示近戰範圍，前搖結束後消失。
+static var _tele_mesh: CylinderMesh = null
+static var _tele_mat: StandardMaterial3D = null
+
+func _spawn_telegraph() -> void:
+	if _tele_mesh == null:
+		_tele_mesh = CylinderMesh.new()
+		_tele_mesh.top_radius = 1.0
+		_tele_mesh.bottom_radius = 1.0
+		_tele_mesh.height = 0.02
+		_tele_mat = StandardMaterial3D.new()
+		_tele_mat.albedo_color = Color(0.9, 0.2, 0.15, 0.35)
+		_tele_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_tele_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var disc := MeshInstance3D.new()
+	disc.mesh = _tele_mesh
+	disc.material_override = _tele_mat
+	disc.scale = Vector3(attack_range + 0.7, 1.0, attack_range + 0.7)
+	get_parent().add_child(disc)
+	disc.global_position = Vector3(global_position.x, 0.05, global_position.z)
+	get_tree().create_timer(MELEE_WINDUP, false).timeout.connect(disc.queue_free)
 
 func _drop_loot() -> void:
 	var killer := get_tree().get_first_node_in_group("player")

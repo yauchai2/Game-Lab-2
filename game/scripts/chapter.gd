@@ -443,7 +443,7 @@ func _current_hint() -> String:
 			any_awake = true
 			break
 	if any_awake and not skill_used:
-		return "Q 或滑鼠右鍵：放大技（普通攻擊會自動出手）"
+		return "Q 或滑鼠右鍵：放大技（普通攻擊用左鍵）"
 	if any_awake and not dashed:
 		return "空白鍵：翻滾，期間無敵，用來躲開紅圈"
 	if jax.guarding:
