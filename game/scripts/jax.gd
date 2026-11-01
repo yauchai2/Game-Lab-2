@@ -46,10 +46,10 @@ var trail_accum := 0.0
 var attack_timer := 0.0
 var attack_swing := 0.0
 # --- 手感：手動連擊（左鍵，可按住）。第 3 下為重擊。---
-const COMBO_DMG := [1.0, 1.0, 2.2]
+const COMBO_DMG := [0.7, 0.7, 1.6]
 const COMBO_KNOCK := [3.0, 3.0, 10.0]
 const COMBO_STOP := [0.035, 0.035, 0.09]
-const COMBO_CD := [1.0, 1.0, 1.6]
+const COMBO_CD := [0.65, 0.65, 1.2]
 const COMBO_LUNGE := [6.0, 6.0, 9.0]
 const COMBO_RESET := 0.5
 const ATTACK_ARC_COS := 0.17
@@ -61,6 +61,9 @@ var combo_idle := 0.0
 var lunge_left := 0.0
 var lunge_dir := Vector3.ZERO
 var lunge_speed := 0.0
+var last_dash_ms := -100000
+var hitstop_until := 0
+const DASH_STRIKE_WINDOW_MS := 600
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -73,6 +76,7 @@ const SFX := preload("res://game/scripts/sfx.gd")
 const FLOATY := preload("res://game/scripts/floaty.gd")
 const FISHEYE := preload("res://game/scripts/fisheye.gd")
 const HITFX := preload("res://game/scripts/hitfx.gd")
+const GS := preload("res://game/scripts/game_settings.gd")
 const SKYE_MODEL := preload("res://assets/characters/skye.glb")
 
 var char_id := "jax"
@@ -740,6 +744,7 @@ func dash(toward: Variant = null) -> void:
 	roll_charges -= 1
 	dash_timer = dash_cooldown
 	stagger_left = 0.0
+	last_dash_ms = Time.get_ticks_msec()
 	dashed.emit()
 	SFX.play(self, "dash", -4.0)
 	has_target = false
@@ -971,8 +976,17 @@ func _explode(pos: Vector3, radius: float, dmg: int) -> void:
 
 # Brief freeze on impact: the cheap trick that makes hits feel heavy.
 func _hit_stop(duration: float) -> void:
+	if GS.v["hit_stop"] == 0:
+		return  # 設定頁關閉頓幀
+	# 多個命中停頓重疊時，以最長者為準，避免提早恢復。
+	var end := Time.get_ticks_msec() + int(duration * 1000.0)
+	if end <= hitstop_until and Engine.time_scale < 1.0:
+		return
+	hitstop_until = end
 	Engine.time_scale = 0.08
-	get_tree().create_timer(duration, true, false, true).timeout.connect(func() -> void: Engine.time_scale = 1.0)
+	get_tree().create_timer(duration, true, false, true).timeout.connect(func() -> void:
+		if Time.get_ticks_msec() >= hitstop_until:
+			Engine.time_scale = 1.0)
 
 func _spawn_zone(center: Vector3, radius: float, life: float, damage: int, color: Color) -> void:
 	var zone := Node3D.new()
@@ -1120,7 +1134,9 @@ func _melee_swing(w: Dictionary, aim: Vector3) -> void:
 	var step := combo_step
 	var hit := 0
 	var kills := 0
-	var dmg := roundi(w["dmg"] * COMBO_DMG[step])
+	# 衝刺後立即出手＝衝刺斬：更遠前衝、傷害 +30%。
+	var dash_strike := Time.get_ticks_msec() - last_dash_ms < DASH_STRIKE_WINDOW_MS
+	var dmg := roundi(w["dmg"] * COMBO_DMG[step] * (1.3 if dash_strike else 1.0))
 	var reach: float = w["reach"] * (1.25 if step == 2 else 1.0)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var d: Vector3 = enemy.global_position - global_position
@@ -1137,16 +1153,16 @@ func _melee_swing(w: Dictionary, aim: Vector3) -> void:
 	attack_timer = w["cd"] * COMBO_CD[step]
 	attack_swing = 1.0
 	lunge_dir = aim
-	lunge_speed = COMBO_LUNGE[step]
-	lunge_left = 0.08
+	lunge_speed = COMBO_LUNGE[step] * (1.8 if dash_strike else 1.0)
+	lunge_left = 0.12 if dash_strike else 0.08
 	combo_idle = 0.0
 	SFX.play(self, "hit" if hit > 0 else "dash", -8.0, 0.12)
 	_spawn_shockwave(global_position + aim * 0.8, reach * 0.6, Color("E7DFC9"), 0.15)
 	if hit > 0:
 		_hit_stop(COMBO_STOP[step] + 0.02 * kills)
-		var cam := get_viewport().get_camera_3d()
-		if cam and cam.has_method("add_shake"):
-			cam.add_shake(0.05 + 0.05 * step)
+		# 每個命中的敵人本身已有火花與輕震；這裡只為重擊與衝刺斬額外加強，並遵從設定頁的震動倍率。
+		if step == 2 or dash_strike:
+			HITFX.shake(self, 0.14)
 	combo_step = (step + 1) % COMBO_DMG.size()
 
 func _shoot_aimed(w: Dictionary, aim: Vector3) -> void:
