@@ -684,6 +684,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			use_extra("skill_r")
 		elif event.keycode == KEY_F:
 			use_extra("skill_f")
+		elif event.keycode == KEY_F3:
+			_toggle_debug()
 		elif event.keycode == KEY_1:
 			use_flask("soda")
 		elif event.keycode == KEY_2:
@@ -1018,7 +1020,39 @@ func _spawn_shockwave(center: Vector3, radius: float, color := Color("CC6657"), 
 	tween.tween_property(ring, "scale", Vector3(radius, 1.0, radius), duration)
 	tween.tween_callback(ring.queue_free)
 
+# 安全網：任何頓幀都不應持續超過 0.5 秒；若時間縮放卡在慢速，強制還原。
+func _watch_time_scale() -> void:
+	if Engine.time_scale >= 1.0:
+		return
+	var now := Time.get_ticks_msec()
+	if now > hitstop_until + 400 and now > HITFX.last_stop + 600:
+		Engine.time_scale = 1.0
+
+# F3：顯示 FPS 與時間縮放，用來分辨「慢動作」是掉幀還是時間縮放。
+var _dbg_layer: CanvasLayer = null
+var _dbg_label: Label = null
+
+func _toggle_debug() -> void:
+	if _dbg_layer != null:
+		_dbg_layer.queue_free()
+		_dbg_layer = null
+		_dbg_label = null
+		return
+	_dbg_layer = CanvasLayer.new()
+	_dbg_label = Label.new()
+	_dbg_label.position = Vector2(8, 8)
+	_dbg_label.add_theme_font_size_override("font_size", 18)
+	_dbg_label.add_theme_color_override("font_color", Color("E6D26A"))
+	_dbg_layer.add_child(_dbg_label)
+	add_child(_dbg_layer)
+
+func _update_debug() -> void:
+	if _dbg_label != null:
+		_dbg_label.text = "FPS %d　時間縮放 %.2f　敵人 %d" % [Engine.get_frames_per_second(), Engine.time_scale, get_tree().get_nodes_in_group("enemies").size()]
+
 func _physics_process(delta: float) -> void:
+	_watch_time_scale()
+	_update_debug()
 	skill_timer = maxf(skill_timer - delta, 0.0)
 	for k in extra_timers:
 		extra_timers[k] = maxf(extra_timers[k] - delta, 0.0)
