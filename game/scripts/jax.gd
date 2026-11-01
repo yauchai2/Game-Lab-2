@@ -48,7 +48,7 @@ var attack_swing := 0.0
 # --- 手感：手動連擊（左鍵，可按住）。第 3 下為重擊。---
 const COMBO_DMG := [0.7, 0.7, 1.6]
 const COMBO_KNOCK := [3.0, 3.0, 10.0]
-const COMBO_STOP := [0.035, 0.035, 0.09]
+const COMBO_STOP := [0.02, 0.02, 0.07]
 const COMBO_CD := [0.65, 0.65, 1.2]
 const COMBO_LUNGE := [6.0, 6.0, 9.0]
 const COMBO_RESET := 0.5
@@ -64,6 +64,7 @@ var lunge_speed := 0.0
 var swing_left_arm := 0.0  # 1.0＝這一下用左手揮（連擊左右手交替）
 var last_dash_ms := -100000
 var hitstop_until := 0
+var last_stop_ms := -100000
 const DASH_STRIKE_WINDOW_MS := 600
 
 @onready var model: Node3D = $Model
@@ -979,14 +980,15 @@ func _explode(pos: Vector3, radius: float, dmg: int) -> void:
 func _hit_stop(duration: float) -> void:
 	if GS.v["hit_stop"] == 0:
 		return  # 設定頁關閉頓幀
-	# 多個命中停頓重疊時，以最長者為準，避免提早恢復。
-	var end := Time.get_ticks_msec() + int(duration * 1000.0)
-	if end <= hitstop_until and Engine.time_scale < 1.0:
+	# 頓幀太密會變成「慢動作」：兩次頓幀之間至少相隔 0.25 秒，並避免與敵人自身的頓幀重疊。
+	var now := Time.get_ticks_msec()
+	if HITFX.stopping or now - last_stop_ms < 250:
 		return
-	hitstop_until = end
-	Engine.time_scale = 0.08
+	last_stop_ms = now
+	hitstop_until = now + int(duration * 1000.0)
+	Engine.time_scale = 0.12
 	get_tree().create_timer(duration, true, false, true).timeout.connect(func() -> void:
-		if Time.get_ticks_msec() >= hitstop_until:
+		if Time.get_ticks_msec() >= hitstop_until and not HITFX.stopping:
 			Engine.time_scale = 1.0)
 
 func _spawn_zone(center: Vector3, radius: float, life: float, damage: int, color: Color) -> void:
