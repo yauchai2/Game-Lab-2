@@ -25,7 +25,7 @@ const RIGHT := [
 	["hide_common", "隱藏白色掉落名牌", "cycle", ["關", "開"]],
 	["toon", "卡通光影", "cycle", ["關", "開"]],
 ]
-const KEYS_TEXT := "操作\nWASD 移動　空白鍵 翻滾\nQ／E／R／F 技能　Shift 格擋\n滑鼠中鍵拖曳 轉鏡頭　滾輪 縮放\nC 工作枱　Z 隱藏白色名牌\nM 音樂　V 魚眼\nEsc 設定"
+const KEYS_TEXT := "操作\nWASD 移動　空白鍵 翻滾\nQ／E／R／F 技能　Shift 格擋\n左鍵 連擊（可按住）　滾輪 縮放\nC 工作枱　Z 隱藏白色名牌\nM 音樂　V 魚眼\nEsc 設定"
 
 var in_game := false
 var was_paused := false
