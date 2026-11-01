@@ -4,8 +4,6 @@ extends Control
 const PROGRESS := preload("res://game/scripts/progress.gd")
 const SFX := preload("res://game/scripts/sfx.gd")
 const STORY := preload("res://game/scripts/story_state.gd")
-## 戰鬥優先：選角後直接進練習場（arena），略過第一章故事。改為 false 即恢復原有劇情流程。
-const COMBAT_FIRST := true
 const CHARACTERS := [
 	{"id": "jax", "name": "Jax　傑克斯", "model": "res://assets/characters/jax.glb",
 		"desc": "近身重擊，打碎一切\n拆場：身邊範圍震擊\n起始武器：鐵管（近戰）\n生命較高"},
@@ -108,7 +106,7 @@ func _process(delta: float) -> void:
 func _pick(id: String) -> void:
 	PROGRESS.character = id
 	PROGRESS.reset()
-	if COMBAT_FIRST:
+	if STORY.COMBAT_FIRST:
 		STORY.level = "arena"
 	SFX.play(self, "ui_click")
 	get_tree().change_scene_to_file("res://game/main.tscn")

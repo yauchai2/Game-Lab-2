@@ -72,9 +72,10 @@ func _ready() -> void:
 		for i in CAMPS.size():
 			_spawn_camp(i)
 		_spawn_boss()
-		chapter = CanvasLayer.new()
-		chapter.set_script(preload("res://game/scripts/chapter.gd"))
-		add_child(chapter)
+		if not STORY.COMBAT_FIRST:
+			chapter = CanvasLayer.new()
+			chapter.set_script(preload("res://game/scripts/chapter.gd"))
+			add_child(chapter)
 	var loot_labels := CanvasLayer.new()
 	loot_labels.set_script(preload("res://game/scripts/loot_labels.gd"))
 	add_child(loot_labels)

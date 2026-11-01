@@ -60,6 +60,7 @@ var combo_step := 0
 var combo_idle := 0.0
 var lunge_left := 0.0
 var lunge_dir := Vector3.ZERO
+var lunge_speed := 0.0
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -1075,8 +1076,10 @@ func _physics_process(delta: float) -> void:
 				look_at(global_position + dir, Vector3.UP)
 		if atk_held or atk_buffer > 0.0:
 			move *= 0.5  # 出手時減速，增加重量感
+			if not guarding:
+				look_at(global_position + _aim_dir(), Vector3.UP)  # 出手時面向滑鼠
 		if lunge_left > 0.0:
-			move += lunge_dir * COMBO_LUNGE[combo_step]
+			move += lunge_dir * lunge_speed
 	if windup_left < 0.0 and dash_left <= 0.0 and stagger_left <= 0.0 and not guarding:
 		_manual_attack()
 	if windup_left < 0.0:
@@ -1127,13 +1130,14 @@ func _melee_swing(w: Dictionary, aim: Vector3) -> void:
 			continue
 		if dist > 0.6 and aim.dot(d / dist) < ATTACK_ARC_COS:
 			continue
-		enemy.take_damage(dmg, global_position, COMBO_KNOCK[step])
+		enemy.take_damage(dmg, global_position, COMBO_KNOCK[step], step == 2)  # 第 3 下為重擊：破甲、削韌性
 		hit += 1
 		if enemy.hp <= 0:
 			kills += 1
 	attack_timer = w["cd"] * COMBO_CD[step]
 	attack_swing = 1.0
 	lunge_dir = aim
+	lunge_speed = COMBO_LUNGE[step]
 	lunge_left = 0.08
 	combo_idle = 0.0
 	SFX.play(self, "hit" if hit > 0 else "dash", -8.0, 0.12)
