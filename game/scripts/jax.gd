@@ -45,6 +45,21 @@ var dash_hit: Array = []
 var trail_accum := 0.0
 var attack_timer := 0.0
 var attack_swing := 0.0
+# --- 手感：手動連擊（左鍵，可按住）。第 3 下為重擊。---
+const COMBO_DMG := [1.0, 1.0, 2.2]
+const COMBO_KNOCK := [3.0, 3.0, 10.0]
+const COMBO_STOP := [0.035, 0.035, 0.09]
+const COMBO_CD := [1.0, 1.0, 1.6]
+const COMBO_LUNGE := [6.0, 6.0, 9.0]
+const COMBO_RESET := 0.5
+const ATTACK_ARC_COS := 0.17
+const INPUT_BUFFER := 0.18
+var atk_held := false
+var atk_buffer := 0.0
+var combo_step := 0
+var combo_idle := 0.0
+var lunge_left := 0.0
+var lunge_dir := Vector3.ZERO
 
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = model.find_child("LegL", true, false)
@@ -638,13 +653,20 @@ func _perfect_block(source: Node) -> void:
 		if source.has_method("poise_damage"):
 			source.poise_damage(60.0)
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		atk_held = false
+
 func _unhandled_input(event: InputEvent) -> void:
 	if dead:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_R:
 			get_tree().reload_current_scene()
 		return
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_RIGHT:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			atk_held = true
+			atk_buffer = INPUT_BUFFER
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			use_skill()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_Q:
@@ -1028,9 +1050,15 @@ func _physics_process(delta: float) -> void:
 			gd.y = 0.0
 			if gd.length() > 0.2:
 				look_at(global_position + gd, Vector3.UP)
+	atk_buffer = maxf(atk_buffer - delta, 0.0)
+	lunge_left = maxf(lunge_left - delta, 0.0)
+	combo_idle += delta
+	if combo_idle > COMBO_RESET:
+		combo_step = 0
 	if dash_left > 0.0:
 		dash_left -= delta
 		move = dash_dir * dash_speed
+		lunge_left = 0.0
 		_dash_effects(delta)
 	elif stagger_left > 0.0:
 		model.rotation.x = lerpf(model.rotation.x, 0.5, 0.4)
@@ -1045,8 +1073,12 @@ func _physics_process(delta: float) -> void:
 			move = dir * speed * (1.4 if buff_left > 0.0 else 1.0) * (0.4 if guarding else 1.0)
 			if not guarding:
 				look_at(global_position + dir, Vector3.UP)
+		if atk_held or atk_buffer > 0.0:
+			move *= 0.5  # 出手時減速，增加重量感
+		if lunge_left > 0.0:
+			move += lunge_dir * COMBO_LUNGE[combo_step]
 	if windup_left < 0.0 and dash_left <= 0.0 and stagger_left <= 0.0 and not guarding:
-		_auto_attack()
+		_manual_attack()
 	if windup_left < 0.0:
 		model.rotation.x = lerpf(model.rotation.x, -0.25 if dash_left > 0.0 else 0.0, 0.3)
 	velocity.x = move.x
@@ -1056,47 +1088,84 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_animate_limbs(delta, move.length() > 0.1 and dash_left <= 0.0)
 
-# 普通攻擊：由武器決定（近戰揮擊／遠程射擊），附近有敵人就自動出手，沒有字卡，邊走邊打。
-func _auto_attack() -> void:
-	if attack_timer > 0.0:
+# 滑鼠所指方向（水平）。
+func _aim_dir() -> Vector3:
+	var p: Variant = _pick_point(get_viewport().get_mouse_position())
+	if p != null:
+		var d: Vector3 = p - global_position
+		d.y = 0.0
+		if d.length() > 0.2:
+			return d.normalized()
+	var f := -global_transform.basis.z
+	f.y = 0.0
+	return f.normalized()
+
+# 普通攻擊：手動（左鍵可按住），朝滑鼠方向；有緩衝，收招後立即接下一下。
+func _manual_attack() -> void:
+	if attack_timer > 0.0 or not (atk_held or atk_buffer > 0.0):
 		return
+	atk_buffer = 0.0
+	var aim := _aim_dir()
+	look_at(global_position + aim, Vector3.UP)
 	var w := weapon_stats()
 	if w["kind"] == "ranged":
-		_shoot_nearest(w)
+		_shoot_aimed(w, aim)
 	else:
-		_melee_swing(w)
+		_melee_swing(w, aim)
 
-func _melee_swing(w: Dictionary) -> void:
+func _melee_swing(w: Dictionary, aim: Vector3) -> void:
+	var step := combo_step
 	var hit := 0
+	var kills := 0
+	var dmg := roundi(w["dmg"] * COMBO_DMG[step])
+	var reach: float = w["reach"] * (1.25 if step == 2 else 1.0)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var d: Vector3 = enemy.global_position - global_position
 		d.y = 0.0
-		if d.length() <= w["reach"]:
-			enemy.take_damage(roundi(w["dmg"]), global_position, 3.0)
-			hit += 1
-	if hit == 0:
-		return
-	attack_timer = w["cd"]
+		var dist := d.length()
+		if dist > reach:
+			continue
+		if dist > 0.6 and aim.dot(d / dist) < ATTACK_ARC_COS:
+			continue
+		enemy.take_damage(dmg, global_position, COMBO_KNOCK[step])
+		hit += 1
+		if enemy.hp <= 0:
+			kills += 1
+	attack_timer = w["cd"] * COMBO_CD[step]
 	attack_swing = 1.0
-	SFX.play(self, "hit", -8.0, 0.12)
-	_spawn_shockwave(global_position, w["reach"], Color("E7DFC9"), 0.18)
+	lunge_dir = aim
+	lunge_left = 0.08
+	combo_idle = 0.0
+	SFX.play(self, "hit" if hit > 0 else "dash", -8.0, 0.12)
+	_spawn_shockwave(global_position + aim * 0.8, reach * 0.6, Color("E7DFC9"), 0.15)
+	if hit > 0:
+		_hit_stop(COMBO_STOP[step] + 0.02 * kills)
+		var cam := get_viewport().get_camera_3d()
+		if cam and cam.has_method("add_shake"):
+			cam.add_shake(0.05 + 0.05 * step)
+	combo_step = (step + 1) % COMBO_DMG.size()
 
-func _shoot_nearest(w: Dictionary) -> void:
+func _shoot_aimed(w: Dictionary, aim: Vector3) -> void:
 	var targets: Array = []
 	for enemy in get_tree().get_nodes_in_group("enemies"):
-		var d: float = enemy.global_position.distance_to(global_position)
-		if d <= w["reach"]:
-			targets.append([d, enemy])
-	if targets.is_empty():
-		return
+		var d: Vector3 = enemy.global_position - global_position
+		d.y = 0.0
+		var dist := d.length()
+		if dist <= w["reach"] and dist > 0.1 and aim.dot(d / dist) > 0.9:
+			targets.append([dist, enemy])
 	targets.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
 	attack_timer = w["cd"]
 	attack_swing = 1.0
 	SFX.play(self, "shoot", -8.0, 0.1)
+	var origin := global_position + Vector3(0, 0.9, 0)
+	if targets.is_empty():
+		_tracer(origin, origin + aim * w["reach"])
+		return
 	for i in mini(w["pellets"], targets.size()):
 		var enemy: Node3D = targets[i][1]
 		enemy.take_damage(roundi(w["dmg"]), global_position, 2.0)
-		_tracer(global_position + Vector3(0, 0.9, 0), enemy.global_position + Vector3(0, 0.8, 0))
+		_tracer(origin, enemy.global_position + Vector3(0, 0.8, 0))
+	_hit_stop(0.03)
 
 func _tracer(a: Vector3, b: Vector3) -> void:
 	var mi := MeshInstance3D.new()
