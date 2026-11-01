@@ -244,18 +244,23 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 # 地上紅圈：標示近戰範圍，前搖結束後消失。
+static var _tele_mesh: CylinderMesh = null
+static var _tele_mat: StandardMaterial3D = null
+
 func _spawn_telegraph() -> void:
+	if _tele_mesh == null:
+		_tele_mesh = CylinderMesh.new()
+		_tele_mesh.top_radius = 1.0
+		_tele_mesh.bottom_radius = 1.0
+		_tele_mesh.height = 0.02
+		_tele_mat = StandardMaterial3D.new()
+		_tele_mat.albedo_color = Color(0.9, 0.2, 0.15, 0.35)
+		_tele_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_tele_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var disc := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = attack_range + 0.7
-	cyl.bottom_radius = attack_range + 0.7
-	cyl.height = 0.02
-	disc.mesh = cyl
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.9, 0.2, 0.15, 0.35)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	disc.material_override = m
+	disc.mesh = _tele_mesh
+	disc.material_override = _tele_mat
+	disc.scale = Vector3(attack_range + 0.7, 1.0, attack_range + 0.7)
 	get_parent().add_child(disc)
 	disc.global_position = Vector3(global_position.x, 0.05, global_position.z)
 	get_tree().create_timer(MELEE_WINDUP, false).timeout.connect(disc.queue_free)

@@ -1209,24 +1209,46 @@ func _get_arc_mesh() -> ArrayMesh:
 	_arc_mesh = st.commit()
 	return _arc_mesh
 
-func _spawn_slash(aim: Vector3, reach: float, heavy: bool) -> void:
+# 弧光節點用「物件池」重複使用，不再每下攻擊新建節點與材質（減少卡頓）。
+var _slash_pool: Array = []
+var _slash_next := 0
+const SLASH_POOL_SIZE := 4
+
+func _make_slash_node() -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = _get_arc_mesh()
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color("E6D26A") if heavy else Color("F4F0E4")
-	m.albedo_color.a = 0.55
+	m.albedo_color = Color(1, 1, 1, 0.55)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mi.material_override = m
+	mi.visible = false
 	get_parent().add_child(mi)
+	return mi
+
+func _spawn_slash(aim: Vector3, reach: float, heavy: bool) -> void:
+	if _slash_pool.is_empty():
+		for k in SLASH_POOL_SIZE:
+			_slash_pool.append(_make_slash_node())
+	var mi: MeshInstance3D = _slash_pool[_slash_next]
+	_slash_next = (_slash_next + 1) % SLASH_POOL_SIZE
+	var m: StandardMaterial3D = mi.material_override
+	var col := Color("E6D26A") if heavy else Color("F4F0E4")
+	col.a = 0.55
+	m.albedo_color = col
 	mi.global_position = global_position + Vector3(0, 0.5, 0)
 	mi.look_at(mi.global_position + aim, Vector3.UP)
 	mi.scale = Vector3(reach * 0.6, 1.0, reach * 0.6)
+	mi.visible = true
+	var old: Variant = mi.get_meta("tw", null)
+	if old != null and old is Tween and old.is_valid():
+		old.kill()
 	var tw := mi.create_tween().set_parallel(true)
+	mi.set_meta("tw", tw)
 	tw.tween_property(mi, "scale", Vector3(reach, 1.0, reach), 0.14)
 	tw.tween_property(m, "albedo_color:a", 0.0, 0.14)
-	tw.chain().tween_callback(mi.queue_free)
+	tw.chain().tween_callback(func() -> void: mi.visible = false)
 
 func _melee_swing(w: Dictionary, aim: Vector3) -> void:
 	var step := combo_step
