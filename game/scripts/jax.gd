@@ -61,6 +61,7 @@ var combo_idle := 0.0
 var lunge_left := 0.0
 var lunge_dir := Vector3.ZERO
 var lunge_speed := 0.0
+var swing_left_arm := 0.0  # 1.0＝這一下用左手揮（連擊左右手交替）
 var last_dash_ms := -100000
 var hitstop_until := 0
 const DASH_STRIKE_WINDOW_MS := 600
@@ -1089,7 +1090,7 @@ func _physics_process(delta: float) -> void:
 			if not guarding:
 				look_at(global_position + dir, Vector3.UP)
 		if atk_held or atk_buffer > 0.0:
-			move *= 0.5  # 出手時減速，增加重量感
+			move *= 0.65  # 出手時略微減速，增加重量感
 			if not guarding:
 				look_at(global_position + _aim_dir(), Vector3.UP)  # 出手時面向滑鼠
 		if lunge_left > 0.0:
@@ -1097,7 +1098,8 @@ func _physics_process(delta: float) -> void:
 	if windup_left < 0.0 and dash_left <= 0.0 and stagger_left <= 0.0 and not guarding:
 		_manual_attack()
 	if windup_left < 0.0:
-		model.rotation.x = lerpf(model.rotation.x, -0.25 if dash_left > 0.0 else 0.0, 0.3)
+		# 揮擊時身體向前傾，收招後彈回
+		model.rotation.x = lerpf(model.rotation.x, -0.25 if dash_left > 0.0 else -0.3 * attack_swing, 0.3)
 	velocity.x = move.x
 	velocity.z = move.z
 	if not is_on_floor():
@@ -1212,6 +1214,7 @@ func _melee_swing(w: Dictionary, aim: Vector3) -> void:
 			kills += 1
 	attack_timer = w["cd"] * COMBO_CD[step]
 	attack_swing = 1.0
+	swing_left_arm = 1.0 if step == 1 else 0.0
 	lunge_dir = aim
 	lunge_speed = COMBO_LUNGE[step] * (1.8 if dash_strike else 1.0)
 	lunge_left = 0.12 if dash_strike else 0.08
@@ -1239,6 +1242,7 @@ func _shoot_aimed(w: Dictionary, aim: Vector3) -> void:
 	targets.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
 	attack_timer = w["cd"]
 	attack_swing = 1.0
+	swing_left_arm = 0.0
 	SFX.play(self, "shoot", -8.0, 0.1)
 	var origin := global_position + Vector3(0, 0.9, 0)
 	if targets.is_empty():
@@ -1271,7 +1275,7 @@ func _animate_limbs(delta: float, moving: bool) -> void:
 	if moving:
 		anim_time += delta * speed * 1.8
 		swing = sin(anim_time) * 0.6
-	for pair in [[leg_l, swing], [leg_r, -swing], [arm_l, -swing * 0.8], [arm_r, swing * 0.8 - 1.6 * attack_swing]]:
+	for pair in [[leg_l, swing], [leg_r, -swing], [arm_l, -swing * 0.8 - 1.6 * attack_swing * swing_left_arm], [arm_r, swing * 0.8 - 1.6 * attack_swing * (1.0 - swing_left_arm)]]:
 		var limb: Node3D = pair[0]
 		if limb:
 			limb.rotation.x = lerpf(limb.rotation.x, pair[1], 0.4)
