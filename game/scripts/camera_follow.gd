@@ -26,6 +26,12 @@ var cine_offset := Vector3.ZERO
 func add_shake(amount: float) -> void:
 	shake = maxf(shake, amount)
 
+## 重擊時鏡頭朝攻擊方向輕推一下再彈回（有方向的震動，比隨機亂晃更有重量）。
+var kick := Vector3.ZERO
+
+func add_kick(dir: Vector3, amount: float) -> void:
+	kick = dir.normalized() * amount
+
 func _ready() -> void:
 	_apply_rotation()
 	if follow:
@@ -61,7 +67,8 @@ func _process(delta: float) -> void:
 		vel.y = 0.0
 		var lead_goal := vel.normalized() * lead_distance if vel.length() > 0.5 else Vector3.ZERO
 		lead = lead.lerp(lead_goal, 1.0 - exp(-3.0 * delta))
-		var goal := follow.global_position + lead + _orbit_offset() * lerpf(1.0, boss_zoom, boss_blend)
+		kick = kick.move_toward(Vector3.ZERO, delta * 2.5)
+		var goal := follow.global_position + kick + lead + _orbit_offset() * lerpf(1.0, boss_zoom, boss_blend)
 		global_position = global_position.lerp(goal, 1.0 - exp(-smoothing * delta))
 	shake = move_toward(shake, 0.0, delta * 1.5)
 	h_offset = randf_range(-1.0, 1.0) * shake

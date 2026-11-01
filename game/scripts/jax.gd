@@ -1128,7 +1128,67 @@ func _manual_attack() -> void:
 	if w["kind"] == "ranged":
 		_shoot_aimed(w, aim)
 	else:
+		aim = _assist_aim(aim, w["reach"])
+		look_at(global_position + aim, Vector3.UP)
 		_melee_swing(w, aim)
+
+# 輕度瞄準輔助（《哈迪斯》式）：滑鼠方向約 45 度內有敵人，就把出手方向拉向最近的那個。
+func _assist_aim(aim: Vector3, reach: float) -> Vector3:
+	var best: Node3D = null
+	var best_dist := reach * 1.5
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		var d: Vector3 = enemy.global_position - global_position
+		d.y = 0.0
+		var dist := d.length()
+		if dist < 0.3 or dist > best_dist:
+			continue
+		if aim.dot(d / dist) < 0.7:
+			continue
+		best = enemy
+		best_dist = dist
+	if best == null:
+		return aim
+	var toward: Vector3 = best.global_position - global_position
+	toward.y = 0.0
+	return (aim * 0.35 + toward.normalized() * 0.65).normalized()
+
+# 揮擊弧光：扇形白光，標示實際判定範圍；重擊與衝刺斬為暖黃色。
+var _arc_mesh: ArrayMesh = null
+
+func _get_arc_mesh() -> ArrayMesh:
+	if _arc_mesh != null:
+		return _arc_mesh
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 14
+	var half := deg_to_rad(52.0)
+	for i in n:
+		var a0 := lerpf(-half, half, float(i) / n)
+		var a1 := lerpf(-half, half, float(i + 1) / n)
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(Vector3(sin(a0), 0.0, -cos(a0)))
+		st.add_vertex(Vector3(sin(a1), 0.0, -cos(a1)))
+	_arc_mesh = st.commit()
+	return _arc_mesh
+
+func _spawn_slash(aim: Vector3, reach: float, heavy: bool) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _get_arc_mesh()
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color("E6D26A") if heavy else Color("F4F0E4")
+	m.albedo_color.a = 0.55
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = m
+	get_parent().add_child(mi)
+	mi.global_position = global_position + Vector3(0, 0.5, 0)
+	mi.look_at(mi.global_position + aim, Vector3.UP)
+	mi.scale = Vector3(reach * 0.6, 1.0, reach * 0.6)
+	var tw := mi.create_tween().set_parallel(true)
+	tw.tween_property(mi, "scale", Vector3(reach, 1.0, reach), 0.14)
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.14)
+	tw.chain().tween_callback(mi.queue_free)
 
 func _melee_swing(w: Dictionary, aim: Vector3) -> void:
 	var step := combo_step
@@ -1157,12 +1217,15 @@ func _melee_swing(w: Dictionary, aim: Vector3) -> void:
 	lunge_left = 0.12 if dash_strike else 0.08
 	combo_idle = 0.0
 	SFX.play(self, "hit" if hit > 0 else "dash", -8.0, 0.12)
-	_spawn_shockwave(global_position + aim * 0.8, reach * 0.6, Color("E7DFC9"), 0.15)
+	_spawn_slash(aim, reach, step == 2 or dash_strike)
 	if hit > 0:
 		_hit_stop(COMBO_STOP[step] + 0.02 * kills)
 		# 每個命中的敵人本身已有火花與輕震；這裡只為重擊與衝刺斬額外加強，並遵從設定頁的震動倍率。
 		if step == 2 or dash_strike:
 			HITFX.shake(self, 0.14)
+			var cam := get_viewport().get_camera_3d()
+			if cam and cam.has_method("add_kick"):
+				cam.add_kick(aim, 0.3 * GS.SHAKE_MULT[GS.v["shake"]])
 	combo_step = (step + 1) % COMBO_DMG.size()
 
 func _shoot_aimed(w: Dictionary, aim: Vector3) -> void:
