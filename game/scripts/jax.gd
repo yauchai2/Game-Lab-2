@@ -1241,9 +1241,10 @@ func _spawn_slash(aim: Vector3, reach: float, heavy: bool) -> void:
 	mi.look_at(mi.global_position + aim, Vector3.UP)
 	mi.scale = Vector3(reach * 0.6, 1.0, reach * 0.6)
 	mi.visible = true
-	var old: Variant = mi.get_meta("tw", null)
-	if old != null and old is Tween and old.is_valid():
-		old.kill()
+	if mi.has_meta("tw"):
+		var old: Variant = mi.get_meta("tw")
+		if old is Tween and old.is_valid():
+			old.kill()
 	var tw := mi.create_tween().set_parallel(true)
 	mi.set_meta("tw", tw)
 	tw.tween_property(mi, "scale", Vector3(reach, 1.0, reach), 0.14)
