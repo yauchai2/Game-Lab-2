@@ -200,7 +200,7 @@ func toggle_bench() -> void:
 const SKILL_BOX := Vector2(68, 30)
 
 func _build_skill_bar() -> void:
-	var defs := [["demolish", "Q"], ["skill_e", "E"], ["skill_r", "R"], ["skill_f", "F"], ["dash", "空白"], ["weapon", "自動"]]
+	var defs := [["demolish", "Q"], ["skill_e", "E"], ["skill_r", "R"], ["skill_f", "F"], ["dash", "空白"], ["weapon", "左鍵"]]
 	for i in defs.size():
 		var back := ColorRect.new()
 		back.color = Color(0.16, 0.18, 0.23, 0.85)
