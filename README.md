@@ -14,7 +14,7 @@
 | `assets/audio/` | 音效、音樂 |
 | `game/` | 遊戲場景與腳本（Godot） |
 | 根目錄 `project.godot` | Godot 專案檔（放在根目錄才讀得到 `assets/`） |
-| `tools/` | 小腳本、輔助工具（例如 `tools/blender/` 模型生成腳本） |
+| `tools/` | 小腳本、輔助工具（例如 `tools/blender/` 模型生成腳本（Jax、Skye）、`tools/audio/` 音效合成腳本） |
 
 ## 現有文件
 
@@ -23,9 +23,11 @@
 - `docs/art/asset-spec.md` — 換模型與場景的資產規格
 - `docs/design/world.md` — 世界觀（疊域、勢力、衝突、反社會基調、命名規則）
 - `docs/design/first-district.md` — 第一區橋底街流程（開場、教學戰、頭目、結算選擇）
+- `docs/design/chapter-1-story.md` — 第一章《街外有事》「吃完再說」大綱（階段化製作、已確認事項）
 - `docs/design/differentiation-ideas.md` — 與 PoE2 的差異化研究與構想（草案）
 - `docs/design/characters.md` — 四人角色設定（唯一來源，含背景、口吻、成長弧線）
 - `docs/design/game-plan.md` — 企劃草案、待決定問題、工具路線
+- `docs/design/poe2-research.md` — PoE 2 機制研究與本作優化計劃（待 Alan 確認優先次序）
 - `docs/guides/godot-setup.md` — 安裝 Godot、開啟並試玩 Jax 試玩版
 
 ## 規則
