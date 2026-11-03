@@ -20,7 +20,7 @@ func _ready() -> void:
 	bm.size = Vector3(0.35, 0.35, 0.35)
 	mi.mesh = bm
 	var m := StandardMaterial3D.new()
-	m.albedo_color = {"xp": Color("75C7B0"), "hp": Color("CC6657"), "receipt": Color("E7DFC9")}.get(kind, Color("F4F0E4"))
+	m.albedo_color = {"xp": Color("8A8A8A"), "hp": Color("FFFFFF"), "receipt": Color("C4C4C4")}.get(kind, Color("F4F0E4"))
 	if kind == "item":
 		# 物品：地上一根光柱加小菱形，名稱由 loot_labels.gd 顯示成名牌。
 		var col: Color = [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")][item["rarity"]]

@@ -28,7 +28,7 @@ func _ready() -> void:
 	attack_range = 2.4
 	attack_damage = 12
 	attack_cooldown = 1.4
-	base_color = Color("CC6657")
+	base_color = Color("0C0C0C")
 	show_bar = false
 	big = true
 	super._ready()
@@ -51,7 +51,7 @@ func _physics_process(delta: float) -> void:
 	if stun_left > 0.0:
 		stun_left -= delta
 		slam_pending = -1.0
-		_material.albedo_color = Color("9FB6E8") if int(stun_left * 8.0) % 2 == 0 else base_color
+		_material.albedo_color = Color("A8A8A8") if int(stun_left * 8.0) % 2 == 0 else base_color
 		if stun_left <= 0.0:
 			_material.albedo_color = base_color
 	elif player and not player.dead:
@@ -103,12 +103,12 @@ func _slam_start(player: Node3D) -> void:
 	slam_pending = SLAM_DELAY
 	SFX.play(self, "boss_warn")
 	slam_center = player.global_position
-	_spawn_zone(slam_center, SLAM_RADIUS, SLAM_DELAY, 0, Color("D6D573"))
+	_spawn_zone(slam_center, SLAM_RADIUS, SLAM_DELAY, 0, Color("B0B0B0"))
 
 func _slam_land(player: Node3D) -> void:
 	slam_pending = -1.0
 	SFX.play(self, "boss_slam")
-	_spawn_zone(slam_center, SLAM_RADIUS, 0.25, 0, Color("CC6657"))
+	_spawn_zone(slam_center, SLAM_RADIUS, 0.25, 0, Color("FFFFFF"))
 	var d: Vector3 = player.global_position - slam_center
 	d.y = 0.0
 	if d.length() <= SLAM_RADIUS:

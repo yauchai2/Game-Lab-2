@@ -15,7 +15,7 @@ func _ready() -> void:
 	cyl.height = 0.05
 	mi.mesh = cyl
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(color.r, color.g, color.b, 0.4)
+	m.albedo_color = Color(color.r, color.g, color.b, 0.5)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mi.material_override = m

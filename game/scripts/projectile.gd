@@ -6,7 +6,7 @@ var speed := 10.0
 var damage := 6
 var life := 3.0
 var element := "phys"
-const COLORS := {"phys": Color("D6D573"), "fire": Color("E0833A"), "cold": Color("75B7E0"), "lightning": Color("F4E27A")}
+const COLORS := {"phys": Color("F2F2F2"), "fire": Color("F2F2F2"), "cold": Color("F2F2F2"), "lightning": Color("F2F2F2")}
 
 func _ready() -> void:
 	var mi := MeshInstance3D.new()
@@ -14,7 +14,7 @@ func _ready() -> void:
 	bm.size = Vector3(0.3, 0.3, 0.3)
 	mi.mesh = bm
 	var m := StandardMaterial3D.new()
-	m.albedo_color = COLORS.get(element, Color("D6D573"))
+	m.albedo_color = COLORS.get(element, Color("F2F2F2"))
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mi.material_override = m
 	add_child(mi)

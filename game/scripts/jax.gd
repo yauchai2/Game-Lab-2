@@ -777,7 +777,7 @@ func _dash_effects(delta: float) -> void:
 		trail_accum += dash_speed * delta
 		if trail_accum >= 1.0:
 			trail_accum -= 1.0
-			_spawn_zone(global_position, 1.2, 2.5, int(6 * item_power(trail) * (1.0 + affix_total("dmg", "skate") / 100.0)), Color("CC6657"))
+			_spawn_zone(global_position, 1.2, 2.5, int(6 * item_power(trail) * (1.0 + affix_total("dmg", "skate") / 100.0)), Color("6A6A6A"))
 
 # 拆場: short windup, then a shockwave that hits every enemy in range.
 func roll_max() -> int:
@@ -911,9 +911,9 @@ func _run_skill(cart: String, centers: Array, dmg_mult: float, radius_base: floa
 			else:
 				get_tree().create_timer(t, false).timeout.connect(_impact.bind(center, int(dmg), radius, opts))
 		if delay > 0.0:
-			_spawn_zone(center, radius, delay, 0, Color("D6D573"))
+			_spawn_zone(center, radius, delay, 0, Color("8C8C8C"))
 		if linger != null:
-			_spawn_zone(center, 2.0, 3.0 + 0.5 * linger["rarity"], int(8 * item_power(linger)), Color("CC6657"))
+			_spawn_zone(center, 2.0, 3.0 + 0.5 * linger["rarity"], int(8 * item_power(linger)), Color("6A6A6A"))
 
 func _nearest_enemy(from: Vector3, max_dist: float) -> Node3D:
 	var best: Node3D = null
@@ -1003,7 +1003,7 @@ func _spawn_zone(center: Vector3, radius: float, life: float, damage: int, color
 	get_parent().add_child(zone)
 	zone.global_position = Vector3(center.x, 0.04, center.z)
 
-func _spawn_shockwave(center: Vector3, radius: float, color := Color("CC6657"), duration := 0.4) -> void:
+func _spawn_shockwave(center: Vector3, radius: float, color := Color("6A6A6A"), duration := 0.4) -> void:
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 0.9

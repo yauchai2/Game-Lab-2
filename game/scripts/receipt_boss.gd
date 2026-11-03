@@ -117,11 +117,11 @@ func _stamp_start(player: Node3D) -> void:
 	stamp_cd = 3.4 if phase == 1 else (3.0 if phase == 2 else 4.5)
 	stamp_pending = STAMP_DELAY
 	stamp_center = player.global_position
-	_spawn_zone(stamp_center, STAMP_RADIUS, STAMP_DELAY, Color("D6D573"))
+	_spawn_zone(stamp_center, STAMP_RADIUS, STAMP_DELAY, Color("B0B0B0"))
 
 func _stamp_land(player: Node3D) -> void:
 	stamp_pending = -1.0
-	_spawn_zone(stamp_center, STAMP_RADIUS, 0.3, Color("CC6657"))
+	_spawn_zone(stamp_center, STAMP_RADIUS, 0.3, Color("FFFFFF"))
 	var d: Vector3 = player.global_position - stamp_center
 	d.y = 0.0
 	if d.length() <= STAMP_RADIUS:

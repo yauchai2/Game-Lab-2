@@ -6,6 +6,10 @@ config/name="Game Lab 2"
 run/main_scene="res://game/title.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 
+[autoload]
+
+Greybox="*res://game/scripts/greybox.gd"
+
 [display]
 
 window/size/viewport_width=960
