@@ -10,6 +10,7 @@
 - `assets/environment/city-textures/`：生成天空和無文字圖案的來源圖片；場景使用中的圖片和日文字型也已打包在 Blender 檔內。
 - `docs/art/city-preview-main.png`、`docs/art/city-preview-east.png`、`docs/art/city-preview-south-loop.png`、`docs/art/city-preview-south-edge.png`、`docs/art/city-preview-south-terminus.png`：主視角、東街及南側背街預覽。
 - `docs/art/city-image-provenance.md`：本輪生成圖片的來源和提示詞。
+- `docs/art/city-review.md`：環視、地面抽樣及合併版比較的範圍與限制。
 - `tools/blender/verify-city-scene.py`：檢查場景集合、日文、字型與圖片依賴。
 - `tools/blender/batch-city-scene.py`：由可編輯版重新產生靜態合併版。
 
