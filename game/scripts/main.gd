@@ -1,5 +1,7 @@
 extends Node3D
 
+const ART := preload("res://game/scripts/art-palette.gd")
+
 const ENEMY_SCENE := preload("res://game/enemy.tscn")
 const BOSS_SCENE := preload("res://game/boss.tscn")
 const BOSS_POS := Vector3(0, 0.05, -17)
@@ -34,7 +36,7 @@ func _spawn_camp(index: int) -> void:
 		if i >= camp["melee"]:
 			enemy.ranged = true
 			enemy.max_hp = 25 + index * 5
-			enemy.base_color = Color("9B8ACC")
+			enemy.base_color = ART.CORAL
 		add_child(enemy)
 		var a := TAU * i / total
 		enemy.global_position = camp["pos"] + Vector3(cos(a), 0.05, sin(a)) * 2.0

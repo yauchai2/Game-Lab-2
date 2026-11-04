@@ -9,17 +9,18 @@
 
 ## 2. 取得專案
 
-用 Git 或 GitHub Desktop 把 `Game-Lab-2` repo 下載到電腦（切換到 PR #1 的 branch `claude/project-thread-0f5oar`，合併後使用 `main`）。
+用 Git 或 GitHub Desktop 把 `Game-Lab-2` repo 下載到電腦（一般使用 `main`；檢視尚未合併的改版時，使用該 PR 標示的分支）。
 
 ## 3. 開啟與試玩
 
 1. Godot 啟動後按 **Import**，選擇 repo 根目錄的 `project.godot`，按 **Import & Edit**。（第一次會自動匯入 Jax 模型，等幾秒。）
 2. 按右上角 **▶**（`F5`）。
 3. 滑鼠**左鍵**點擊地板，Jax 走過去；**按住左鍵**會一直跟著游標移動（鏡頭跟隨，有走路動作）。
-4. 綠色方塊敵人會一波波從四周追過來（每波多一隻），按 **Q** 或滑鼠**右鍵**施放「拆場」重擊：彎身蓄力後放出衝擊環，3.5 米內的敵人受傷並被擊退（敵人被打 2 下即死；第 2 波起出現紫色遠程敵人，會保持距離射出飛彈，冷卻 1.5 秒）。
-5. 按 **空白鍵** 向滑鼠方向滑板衝刺（約 5 米，衝刺期間無敵，冷卻 1 秒）。
-6. 敵人死後會掉落薄荷綠方塊（經驗）與珊瑚色方塊（回血），走近自動吸收；經驗滿了就升級，自動回滿血，最大血量與技能傷害小幅提升（不會彈出選單）。
-7. 左上角顯示等級、血量、波數與技能冷卻。血量歸零會倒地，按 **R** 重新開始。
+4. 場內有四個據點，共 17 隻敵人，走近才會整群追擊；灰橄欖為近戰、珊瑚橙為遠程。按 **Q** 或滑鼠**右鍵**施放「拆場」，預設 3.5 米範圍、25 點傷害；遠程敵人會保持距離並每約 2 秒射出亮黃彈丸。
+5. 按 **空白鍵**向滑鼠方向衝刺，約 5 米、冷卻 1 秒，期間無敵。
+6. 經驗掉落物為薄荷、回血為珊瑚、單據為暖白；走近吸收。升級回滿生命並提高上限及技能傷害。
+7. 左上角顯示等級、生命、據點、單據與冷卻。按 **C** 開關卡匣工作臺，開啟時暫停。
+8. 生命歸零後按 **R** 重來；等級、背包與配件保留，單據減半。這些保留只在程式運行期間有效。
 
 如果出現紅色錯誤，請截圖或複製底部的紅字給我。
 
@@ -31,14 +32,17 @@
 | `game/main.tscn` | 主場景：地板、Jax、鏡頭、燈 |
 | `game/scripts/jax.gd` | Jax 移動、走路動畫、「拆場」技能 |
 | `game/scripts/camera_follow.gd` | 鏡頭跟隨 |
-| `game/enemy.tscn`、`game/scripts/enemy.gd` | 敵人：追人、近身攻擊、受擊閃白與擊退（40 血） |
+| `game/enemy.tscn`、`game/scripts/enemy.gd` | 敵人：據點喚醒、近戰／遠程、受擊閃白與擊退（生命依據點增加） |
 | `game/scripts/projectile.gd` | 遠程敵人的飛彈 |
 | `game/scripts/speed_lines.gd` | 衝刺與重擊時的放射速度線 |
 | `game/scripts/zone.gd` | 地面範圍（預警圈、殘留區） |
 | `game/scripts/pickup.gd` | 掉落物（經驗、回血） |
-| `game/scripts/main.gd` | 一波波生成敵人 |
+| `game/scripts/main.gd` | 生成四個據點與頭目 |
+| `game/scripts/art-palette.gd` | 共用暖白／青綠／珊瑚／亮黃色票及霧面 toon 材質 |
+| `game/scripts/street-sky.gdshader` | 青藍天空與硬邊白雲 |
+| `tools/capture-preview.gd` | 擷取實際 Godot 遊玩、工作臺及低角度展示預覽 |
 | `game/scripts/street.gd` | 用方塊程式生成街道、建築、路燈、樹、車（色票見 `style-guide.md`） |
-| `game/scripts/hud.gd` | 左上角血條、波數、技能冷卻 |
+| `game/scripts/hud.gd` | 血條、據點、技能冷卻與卡匣工作臺 |
 | `assets/characters/jax.glb` | Jax 低多邊形模型（由 Blender 腳本生成） |
 | `tools/blender/make_jax.py` | 生成 Jax 模型的腳本 |
 
@@ -50,11 +54,13 @@
 
 ## 畫面風格設定
 
+2026-11-04 起依 Drive 參考改為日曬街頭：青藍天空白雲、暖白混凝土、青綠鐵構、珊瑚與亮黃。Jax、街景、敵人與介面同步新色票；不再使用藍紫作整體底色。
+
 專案使用 640×360 低解析度渲染再放大 2 倍（`project.godot` 內的 `display/window/stretch`），所以畫面有像素階梯感，對應參考影片的復古低解析風格。最新畫面預覽：`docs/art/gameplay-preview.png`。
 
 ## 卡匣配件（隨機掉落加組合 build）
 
-目前有 2 張卡匣，每張 2 個配件槽：**拆場 Demolish**（Q 或右鍵）與**滑板衝刺 Skate**（Space）。**配件由敵人隨機掉落**（大方塊，顏色代表稀有度：白 Normal、藍 Magic、黃 Rare），走近自動拾取進背包（上限 10 件）。前 2 隻敵人必定掉落一件。
+目前有 2 張卡匣，每張 2 個配件槽：**拆場 Demolish**（Q 或右鍵）與**滑板衝刺 Skate**（Space）。**配件由敵人隨機掉落**（大方塊，顏色代表稀有度：暖白普通、薄荷魔法、亮黃稀有），走近自動拾取進背包（上限 10 件）。前 2 隻敵人必定掉落一件。
 
 **拆場配件（8 款）**
 
@@ -80,9 +86,9 @@
 
 稀有度越高，效果越強（Magic +15%、Rare +30%），並帶有隨機詞綴：Magic 1 條、Rare 2 條（+傷害%、+範圍、−冷卻%）。
 
-按 **C** 開啟工作枱（遊戲暫停）：
-- 點選背包中的配件，按 **Equip／Unequip** 裝上或拆下（自動裝入對應卡匣）；點擊上方的槽可以直接拆走。
-- **單據**用途：**Reroll（2）** 重擲詞綴（Magic、Rare）、**Upgrade（3／6）** 提升稀有度（Normal→Magic→Rare，詞綴重新抽取）、**Scrap（+1）** 拆解配件換取 1 單據。
+按 **C** 開啟工作臺（遊戲暫停）：
+- 點選背包中的配件，按 **裝上／拆下** 裝上或拆下（自動裝入對應卡匣）；點擊上方的槽可以直接拆走。
+- **單據**用途：**重擲（2）** 重擲詞綴（Magic、Rare）、**升級（3／6）** 提升稀有度（Normal→Magic→Rare，詞綴重新抽取）、**拆解（+1）** 拆解配件換取 1 單據。
 - 配件可以疊加，例如 Echo Slam＋Time Bomb、Flame Trail＋Double Dash。
 
 **語言：** 遊戲內文字暫時全部是中文（字體使用系統字體，Windows 與 Mac 直接顯示；日後出網頁版要另外放入中文字型檔）。
@@ -112,6 +118,19 @@
 
 ## 打擊演出
 
-- **技能字卡：** 施放「拆場」或衝刺時，畫面中間彈出橫幅字卡（DEMOLISH／SKATE DASH），拆場字卡下面會列出已裝備的配件名。
+- **技能字卡：** 施放「拆場」或衝刺時，畫面中間彈出橫幅字卡（拆場／滑板衝刺），拆場字卡下面會列出已裝備的配件名。
 - **速度線：** 衝刺與重擊命中敵人時，畫面射出放射狀白色速度線（命中越多越強）。
 - 另外有頓幀與鏡頭震動。
+
+
+## 重建模型與預覽（開發者／AI）
+
+在儲存庫根目錄執行：
+
+```sh
+blender --background --python tools/blender/make_jax.py -- --preview
+godot --headless --path . --editor --import --quit
+godot --path . --rendering-method gl_compatibility --script tools/capture-preview.gd
+```
+
+擷取預覽需可用的圖形顯示環境；可用軟體 OpenGL，不能用 `--headless` 的空白渲染器宣稱完成視覺驗證。腳本輸出 `gameplay-preview.png`、`bench-preview.png` 和 `street-preview.png` 至 `docs/art/`。遊玩鏡頭保留斜俯視並略靠近（fov 55°）；低角度圖片是展示視角。

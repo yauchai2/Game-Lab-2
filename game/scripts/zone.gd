@@ -1,10 +1,12 @@
 extends Node3D
+
+const ART := preload("res://game/scripts/art-palette.gd")
 ## Ground zone: telegraph (damage 0) or lingering hazard that ticks damage on enemies inside.
 
 var radius := 2.0
 var life := 3.0
 var damage := 8
-var color := Color("CC6657")
+var color := ART.CORAL
 var tick := 0.5
 
 func _ready() -> void:

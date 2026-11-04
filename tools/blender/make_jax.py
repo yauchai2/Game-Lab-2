@@ -1,7 +1,7 @@
 """Build the Jax low-poly model from primitives and export assets/characters/jax.glb.
 
-Run:  python tools/blender/make_jax.py        (needs `pip install bpy`)
-Optional: add --preview to also render assets/characters/jax-preview.png
+Run:  blender --background --python tools/blender/make_jax.py
+Optional: append -- --preview to render docs/art/jax-preview.png
 Blender: +Y is the model's front; Z is up. Units are metres.
 """
 import math
@@ -16,8 +16,8 @@ OUT_GLB = os.path.join(ROOT, "assets", "characters", "jax.glb")
 OUT_PNG = os.path.join(ROOT, "docs", "art", "jax-preview.png")
 
 PALETTE = {
-    "navy": "292D3B", "chalk": "E7DFC9", "sea": "35676B", "coral": "CC6657",
-    "iron": "9AA3AD", "skin": "E9CBB5", "hair": "302D2B", "eye": "4C3930",
+    "ink": "243C38", "chalk": "FFF1D6", "sea": "237F78", "coral": "EC684B",
+    "iron": "A6AB99", "skin": "E9CBB5", "hair": "302D2B", "eye": "4C3930",
     "teeth": "F4F0E4",
 }
 
@@ -88,12 +88,12 @@ for side, sx in (("L", -1), ("R", 1)):
     hip = empty(f"Leg{side}", (sx * 0.12, 0, 0.90), root)
     bpy.context.view_layer.update()
     cx = sx * 0.12
-    box(f"Pants{side}", "navy", hip, cx - 0.115, cx + 0.115, -0.12, 0.12, 0.12, 0.90)
-    box(f"Sole{side}", "navy", hip, cx - 0.12, cx + 0.12, -0.10, 0.22, 0.0, 0.07)
+    box(f"Pants{side}", "ink", hip, cx - 0.115, cx + 0.115, -0.12, 0.12, 0.12, 0.90)
+    box(f"Sole{side}", "ink", hip, cx - 0.12, cx + 0.12, -0.10, 0.22, 0.0, 0.07)
     box(f"Shoe{side}", "chalk", hip, cx - 0.11, cx + 0.11, -0.08, 0.21, 0.07, 0.15)
     box(f"Heel{side}", "sea", hip, cx - 0.11, cx + 0.11, -0.10, -0.04, 0.07, 0.12)
-box("Pocket", "navy", root, -0.245, -0.225, 0.0, 0.10, 0.55, 0.72)
-box("Waist", "navy", root, -0.19, 0.19, -0.11, 0.11, 0.88, 1.00)
+box("Pocket", "ink", root, -0.245, -0.225, 0.0, 0.10, 0.55, 0.72)
+box("Waist", "ink", root, -0.19, 0.19, -0.11, 0.11, 0.88, 1.00)
 
 # Torso: white long sleeve underneath, coral tee over it.
 box("Undershirt", "chalk", root, -0.17, 0.17, -0.10, 0.10, 0.97, 1.45)
@@ -113,8 +113,8 @@ head = empty("Head", (0, 0, 1.45), root)
 bpy.context.view_layer.update()
 box("Neck", "skin", head, -0.04, 0.04, -0.04, 0.04, 1.44, 1.50)
 box("Face", "skin", head, -0.13, 0.13, -0.13, 0.13, 1.48, 1.74)
-box("Cap", "navy", head, -0.145, 0.145, -0.145, 0.145, 1.62, 1.76)
-box("Brim", "navy", head, -0.145, 0.145, 0.10, 0.25, 1.62, 1.65)
+box("Cap", "ink", head, -0.145, 0.145, -0.145, 0.145, 1.62, 1.76)
+box("Brim", "ink", head, -0.145, 0.145, 0.10, 0.25, 1.62, 1.65)
 box("EyeL", "eye", head, -0.085, -0.035, 0.13, 0.14, 1.56, 1.60)
 box("EyeR", "eye", head, 0.035, 0.085, 0.13, 0.14, 1.56, 1.60)
 box("MouthBack", "eye", head, -0.075, 0.075, 0.13, 0.14, 1.495, 1.54)
@@ -145,6 +145,16 @@ for o in bpy.data.objects:
         for p in o.data.polygons:
             p.use_smooth = False
 
+# Match the 1.74m asset contract, including the cap and projecting hair.
+bpy.context.view_layer.update()
+height = max((o.matrix_world @ Vector(v)).z for o in bpy.data.objects
+             if o.type == "MESH" for v in o.bound_box)
+root.scale *= 1.74 / height
+bpy.context.view_layer.update()
+tris = sum(len(p.vertices) - 2 for o in bpy.data.objects if o.type == "MESH" for p in o.data.polygons)
+assert tris <= 3000, f"Jax exceeds asset budget: {tris} triangles"
+assert abs(max((o.matrix_world @ Vector(v)).z for o in bpy.data.objects
+               if o.type == "MESH" for v in o.bound_box) - 1.74) < 0.001
 os.makedirs(os.path.dirname(OUT_GLB), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=OUT_GLB, export_format="GLB", export_yup=True)
 tris = sum(len(p.vertices) - 2 for o in bpy.data.objects if o.type == "MESH" for p in o.data.polygons)
@@ -159,7 +169,9 @@ if "--preview" in sys.argv:
     scene.display.shading.color_type = "MATERIAL"
     scene.render.resolution_x, scene.render.resolution_y = 450, 700
     scene.world = bpy.data.worlds.new("w")
-    scene.world.color = (0.62, 0.8, 0.95)
+    scene.world.color = (0.9, 0.88, 0.78)
+    scene.display.shading.background_type = "WORLD"
+    scene.view_settings.view_transform = "Standard"
     cam_data = bpy.data.cameras.new("cam")
     cam_data.type = "ORTHO"
     cam_data.ortho_scale = 2.0

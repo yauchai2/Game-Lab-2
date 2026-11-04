@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const ART := preload("res://game/scripts/art-palette.gd")
+
 const BAR_SIZE := Vector2(140, 8)
 
 var hp_back := ColorRect.new()
@@ -18,7 +20,7 @@ var bench_dim := ColorRect.new()
 var boss_back := ColorRect.new()
 var boss_fill := ColorRect.new()
 var boss_label := Label.new()
-var bench_msg := Label.new()
+var bench_msg: Label
 var selected_uid := -1
 
 @onready var jax: Node = get_parent().get_node("Jax")
@@ -29,17 +31,17 @@ func _ready() -> void:
 	bench.add_theme_constant_override("separation", 1)
 	bench.custom_minimum_size = Vector2(520, 0)
 	bench.visible = false
-	bench_dim.color = Color(0.1, 0.11, 0.15, 0.78)
+	bench_dim.color = Color(ART.INK, 0.92)
 	bench_dim.size = Vector2(640, 360)
 	bench_dim.visible = false
 	add_child(bench_dim)
 	add_child(bench)
-	boss_back.color = Color("292D3B")
+	boss_back.color = ART.INK
 	boss_back.position = Vector2(220, 340)
 	boss_back.size = Vector2(202, 10)
 	boss_back.visible = false
 	add_child(boss_back)
-	boss_fill.color = Color("D6D573")
+	boss_fill.color = ART.YELLOW
 	boss_fill.position = Vector2(221, 9)
 	boss_fill.size = Vector2(200, 8)
 	boss_back.add_child(boss_fill)
@@ -47,44 +49,50 @@ func _ready() -> void:
 	boss_label.add_theme_font_size_override("font_size", 10)
 	boss_label.position = Vector2(220, 326)
 	boss_label.visible = false
+	boss_label.add_theme_color_override("font_color", ART.PAPER)
+	boss_label.add_theme_color_override("font_outline_color", ART.INK)
+	boss_label.add_theme_constant_override("outline_size", 3)
 	add_child(boss_label)
-	hp_back.color = Color("292D3B")
+	hp_back.color = ART.INK
 	hp_back.position = Vector2(8, 8)
 	hp_back.size = BAR_SIZE + Vector2(2, 2)
 	add_child(hp_back)
-	hp_fill.color = Color("CC6657")
+	hp_fill.color = ART.CORAL
 	hp_fill.position = Vector2(9, 9)
 	hp_fill.size = BAR_SIZE
 	add_child(hp_fill)
-	xp_back.color = Color("292D3B")
+	xp_back.color = ART.INK
 	xp_back.position = Vector2(8, 20)
 	xp_back.size = Vector2(BAR_SIZE.x + 2, 5)
 	add_child(xp_back)
-	xp_fill.color = Color("75C7B0")
+	xp_fill.color = ART.MINT
 	xp_fill.position = Vector2(9, 21)
 	xp_fill.size = Vector2(BAR_SIZE.x, 3)
 	add_child(xp_fill)
 	info.position = Vector2(8, 28)
 	info.add_theme_font_size_override("font_size", 10)
+	info.add_theme_color_override("font_color", ART.PAPER)
+	info.add_theme_color_override("font_outline_color", ART.INK)
+	info.add_theme_constant_override("outline_size", 3)
 	add_child(info)
 	lines.set_script(load("res://game/scripts/speed_lines.gd"))
 	add_child(lines)
-	card_band.color = Color(0.16, 0.18, 0.23, 0.8)
+	card_band.color = Color(ART.INK, 0.94)
 	card_band.size = Vector2(640, 34)
 	card_band.position = Vector2(0, 100)
 	card_band.pivot_offset = Vector2(320, 17)
 	card_band.visible = false
 	add_child(card_band)
 	card_title.add_theme_font_size_override("font_size", 22)
-	card_title.add_theme_color_override("font_color", Color("CC6657"))
-	card_title.add_theme_color_override("font_outline_color", Color("E7DFC9"))
+	card_title.add_theme_color_override("font_color", ART.CORAL)
+	card_title.add_theme_color_override("font_outline_color", ART.PAPER)
 	card_title.add_theme_constant_override("outline_size", 3)
 	card_title.size = Vector2(640, 26)
 	card_title.position = Vector2(0, -3)
 	card_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card_band.add_child(card_title)
 	card_sub.add_theme_font_size_override("font_size", 8)
-	card_sub.add_theme_color_override("font_color", Color("E7DFC9"))
+	card_sub.add_theme_color_override("font_color", ART.PAPER)
 	card_sub.size = Vector2(640, 12)
 	card_sub.position = Vector2(0, 22)
 	card_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -97,6 +105,9 @@ func _ready() -> void:
 	jax.slammed.connect(func(hits: int) -> void: lines.burst(clampf(0.5 + hits * 0.25, 0.5, 1.5)))
 	banner.position = Vector2(8, 150)
 	banner.add_theme_font_size_override("font_size", 20)
+	banner.add_theme_color_override("font_color", ART.YELLOW)
+	banner.add_theme_color_override("font_outline_color", ART.INK)
+	banner.add_theme_constant_override("outline_size", 3)
 	add_child(banner)
 
 func _process(_delta: float) -> void:
@@ -131,14 +142,13 @@ func toggle_bench() -> void:
 		bench.visible = true
 		bench_dim.visible = true
 		get_tree().paused = true
-		bench_msg.text = ""
 		_refresh_bench()
 
 func _bench_label(text: String, size := 10) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_outline_color", Color("292D3B"))
+	l.add_theme_color_override("font_outline_color", ART.INK)
 	l.add_theme_constant_override("outline_size", 4)
 	return l
 
@@ -147,9 +157,13 @@ func _bench_button(text: String, handler: Callable) -> Button:
 	b.text = text
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.add_theme_font_size_override("font_size", 10)
+	b.add_theme_color_override("font_color", ART.PAPER)
+	b.add_theme_color_override("font_hover_color", ART.PAPER)
+	b.add_theme_color_override("font_pressed_color", ART.PAPER)
+	b.add_theme_color_override("font_disabled_color", ART.CONCRETE)
 	for st in ["normal", "hover", "pressed", "disabled"]:
 		var box := StyleBoxFlat.new()
-		box.bg_color = Color(0.16, 0.18, 0.23, 0.92) if st != "hover" else Color(0.28, 0.32, 0.4, 0.95)
+		box.bg_color = ART.INK if st != "hover" else ART.TEAL
 		box.content_margin_top = 0
 		box.content_margin_bottom = 0
 		box.content_margin_left = 4
@@ -158,7 +172,7 @@ func _bench_button(text: String, handler: Callable) -> Button:
 	b.pressed.connect(handler)
 	return b
 
-const RARITY_COLORS := [Color("F4F0E4"), Color("9FB6E8"), Color("D6D573")]
+const RARITY_COLORS := ART.RARITY
 
 func _item_line(it: Dictionary) -> String:
 	var line: String = jax.item_name(it)
@@ -171,7 +185,7 @@ const CART_TAGS := {"demolish": "Q", "skate": "衝"}
 func _refresh_bench() -> void:
 	for c in bench.get_children():
 		c.queue_free()
-	bench.add_child(_bench_label("卡匣工作枱　單據 %d　（按 C 關閉）" % jax.receipts, 12))
+	bench.add_child(_bench_label("卡匣工作臺　單據 %d　（按 C 關閉）" % jax.receipts, 12))
 	bench.add_child(_bench_label("請先點選下方背包中的配件，再按「裝上」。［Q］為拆場配件，［衝］為滑板衝刺配件。", 9))
 	for cart in jax.slots:
 		for i in jax.slots[cart].size():

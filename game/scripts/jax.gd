@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const ART := preload("res://game/scripts/art-palette.gd")
+
 @export var speed := 6.0
 @export var gravity := 20.0
 @export var skill_cooldown := 1.5
@@ -54,6 +56,12 @@ var attack_swing := 0.0
 const PROGRESS := preload("res://game/scripts/progress.gd")
 
 func _ready() -> void:
+	# Imported GLB keeps its authored colours; use the same matte toon response as the street.
+	for mesh in model.find_children("*", "MeshInstance3D", true, false):
+		for surface in mesh.mesh.get_surface_count():
+			var source: Material = mesh.get_active_material(surface)
+			if source is StandardMaterial3D:
+				mesh.set_surface_override_material(surface, ART.material(source.albedo_color))
 	add_to_group("player")
 	_load_progress()
 	hp = max_hp
@@ -377,7 +385,7 @@ func _dash_effects(delta: float) -> void:
 		trail_accum += dash_speed * delta
 		if trail_accum >= 1.0:
 			trail_accum -= 1.0
-			_spawn_zone(global_position, 1.2, 2.5, int(6 * item_power(trail) * (1.0 + affix_total("dmg", "skate") / 100.0)), Color("CC6657"))
+			_spawn_zone(global_position, 1.2, 2.5, int(6 * item_power(trail) * (1.0 + affix_total("dmg", "skate") / 100.0)), ART.CORAL)
 
 # 拆場: short windup, then a shockwave that hits every enemy in range.
 func use_skill() -> void:
@@ -427,9 +435,9 @@ func _slam() -> void:
 		else:
 			get_tree().create_timer(t, false).timeout.connect(_impact.bind(center, int(dmg), radius, opts))
 	if delay > 0.0:
-		_spawn_zone(center, radius, delay, 0, Color("D6D573"))
+		_spawn_zone(center, radius, delay, 0, ART.YELLOW)
 	if linger != null:
-		_spawn_zone(center, 2.0, 3.0 + 0.5 * linger["rarity"], int(8 * item_power(linger)), Color("CC6657"))
+		_spawn_zone(center, 2.0, 3.0 + 0.5 * linger["rarity"], int(8 * item_power(linger)), ART.CORAL)
 
 func _impact(center: Vector3, dmg: int, radius: float, opts: Dictionary) -> void:
 	var hit_count := 0
@@ -483,7 +491,7 @@ func _spawn_zone(center: Vector3, radius: float, life: float, damage: int, color
 	get_parent().add_child(zone)
 	zone.global_position = Vector3(center.x, 0.04, center.z)
 
-func _spawn_shockwave(center: Vector3, radius: float, color := Color("CC6657"), duration := 0.4) -> void:
+func _spawn_shockwave(center: Vector3, radius: float, color := ART.CORAL, duration := 0.4) -> void:
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 0.9
@@ -567,7 +575,7 @@ func _auto_attack() -> void:
 		return
 	attack_timer = attack_cooldown
 	attack_swing = 1.0
-	_spawn_shockwave(global_position, attack_radius, Color("E7DFC9"), 0.18)
+	_spawn_shockwave(global_position, attack_radius, ART.PAPER, 0.18)
 
 func _animate_limbs(delta: float, moving: bool) -> void:
 	var swing := 0.0

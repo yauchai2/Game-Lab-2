@@ -2,6 +2,12 @@
 
 目標：任何人（你、我、外部美術）做出符合這份規格的模型，**直接覆蓋同名檔案就可以換入遊戲，不需要修改程式**。
 
+## 現行美術與交付（2026-11-04）
+
+本次已按 Alan 指示採用 Drive 街頭 3D 方向，取代舊版藍紫夜城配色。以暖白、青綠、灰橄欖為大面，珊瑚與亮黃作重點；天空保留青藍和白雲。色碼以 `style-guide.md`、角色用色以 `../design/characters.md` 為準，執行時共用 `game/scripts/art-palette.gd`。膚色、五官、服裝剪裁與配件輪廓保留各人差異。
+
+目前 Jax 為可玩原型；其他三人仍待建模。GLB 可以傳遞幾何、材質與動畫，不能保證傳遞 Blender 自訂 toon 節點。遊戲端使用霧面 toon diffuse，描邊須另外測試。保留既有節點名與動畫接入規則，避免改美術時破壞玩法。
+
 ## 通用
 
 | 項目 | 規定 |
@@ -13,7 +19,7 @@
 | 面數 | 角色 ≤ 3,000 三角面；道具 ≤ 500；建築 ≤ 1,500 |
 | 貼圖 | 優先使用純色材質；有貼圖則 ≤ 128×128，Godot 使用 Nearest（已設定） |
 | 顏色 | 使用 `docs/art/style-guide.md` 與 `docs/design/characters.md` 的色票 |
-| 風格 | 平塗、霧面、無金屬反光、少量大面，保留完整 3D 厚度 |
+| 風格 | 平塗、霧面、少量大面、完整 3D 厚度；以卡通明暗分色，圖案和輪廓優先 |
 
 ## 角色（`assets/characters/<名>.glb`）
 
@@ -56,7 +62,7 @@
 
 1. 刪除預設方塊以外的所有物件；用方塊起形：`Shift+A` → Mesh → Cube。
 2. 編輯模式（`Tab`）：`G` 移動、`S` 縮放、`E` 擠出，用大面砌出身體、頭、手腳（參考 `tools/blender/make_jax.py` 的尺寸）。
-3. 上色：在 Material 面板新增材質，Base Color 填入色票的 HEX，Roughness 設為 1。
+3. 上色：Base Color 使用現行 HEX 色票，Roughness＝1、Metallic＝0。程式生成 Jax 請執行 `blender --background --python tools/blender/make_jax.py`；生成器包含 sRGB 轉線性及高度檢查。
 4. 檢查比例：`N` → Item → Dimensions。
 5. 一個部件一個物件，並按規格改名與設定樞軸。
 

@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const ART := preload("res://game/scripts/art-palette.gd")
+
 @export var max_hp := 40
 @export var speed := 2.8
 @export var attack_range := 1.6
@@ -7,7 +9,7 @@ extends CharacterBody3D
 @export var attack_cooldown := 1.2
 @export var gravity := 20.0
 @export var ranged := false
-@export var base_color := Color("8C9871")
+@export var base_color := ART.OLIVE
 
 var hp := 40
 var awake := true
@@ -15,7 +17,7 @@ var aggro_range := 9.0
 var camp := ""
 var cooldown := 0.0
 var knockback := Vector3.ZERO
-var _material := StandardMaterial3D.new()
+var _material := ART.material(ART.INK)
 
 const PICKUP := preload("res://game/scripts/pickup.gd")
 const PROJECTILE := preload("res://game/scripts/projectile.gd")
@@ -29,6 +31,7 @@ func _ready() -> void:
 		add_to_group(camp)
 	_material.albedo_color = base_color
 	mesh.material_override = _material
+	_build_visual()
 
 func take_damage(amount: int, from_pos: Vector3 = Vector3.ZERO, knock := 6.0) -> void:
 	if hp <= 0:
@@ -124,3 +127,29 @@ func _shoot(dir: Vector3) -> void:
 	b.direction = dir
 	get_parent().add_child(b)
 	b.global_position = global_position + Vector3(0, 1.0, 0) + dir * 0.8
+
+# Replace collision-box visuals with simple articulated street silhouettes.
+# Collision, range, speed, health, groups and hit reactions stay on the parent.
+func _build_visual() -> void:
+	var body_size: Vector3 = mesh.mesh.size
+	var factor := body_size.y / 1.6
+	mesh.mesh = null
+	_part(Vector3(0, -0.05, 0), Vector3(0.72, 0.72, 0.48), _material, factor)
+	_part(Vector3(0, 0.49, 0), Vector3(0.52, 0.38, 0.46), ART.material(ART.PAPER), factor)
+	_part(Vector3(0, 0.5, -0.24), Vector3(0.44, 0.12, 0.03), ART.material(ART.INK), factor)
+	for side in [-1, 1]:
+		_part(Vector3(side * 0.21, -0.55, 0), Vector3(0.26, 0.37, 0.31), _material, factor)
+		_part(Vector3(side * 0.21, -0.7, -0.08), Vector3(0.34, 0.16, 0.48), ART.material(ART.INK), factor)
+		_part(Vector3(side * 0.48, -0.08, 0), Vector3(0.2, 0.58, 0.28), _material, factor)
+	_part(Vector3(-0.17, 0.12, -0.25), Vector3(0.15, 0.2, 0.035), ART.material(ART.YELLOW), factor)
+	if ranged:
+		_part(Vector3(0.45, -0.08, -0.35), Vector3(0.22, 0.22, 0.6), ART.material(ART.INK), factor)
+
+func _part(pos: Vector3, dimensions: Vector3, material: Material, factor: float) -> void:
+	var part := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = dimensions * factor
+	part.mesh = box
+	part.material_override = material
+	part.position = pos * factor
+	mesh.add_child(part)

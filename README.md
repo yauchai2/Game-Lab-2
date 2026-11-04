@@ -1,6 +1,20 @@
 # Game Lab 2
 
-低多邊形（Low-poly）四人街頭遊戲。個人開發項目。
+低多邊形（Low-poly）街頭動作 RPG。四名可選角色、單人遊玩；目前可玩原型為 Jax。個人開發項目。
+
+## 現行美術方向（2026-11-04）
+
+依 Alan 最新指示，全案跟隨 [Drive 參考](https://drive.google.com/drive/folders/1VVc1FFVGtFLM5OatUtT8dPYhKbnIB7pb)：日曬街區、青藍天空白雲、暖白混凝土、青綠鐵構、珊瑚與亮黃重點色、低多邊形街服人物及卡通明暗。此決定取代先前藍紫夜城／霓虹基調。世界觀、角色色票、資產、教學、街景、敵人、HUD 與 Jax 生成器均依此同步。
+
+AI 接手先讀 [美術指南](docs/art/style-guide.md) → [角色](docs/design/characters.md) → [世界觀](docs/design/world.md) → [資產規格](docs/art/asset-spec.md)。角色剪裁與身份保持各自差異；不得從舊版恢復已替換色票。
+
+目前包含四個據點、17 隻敵人、一個頭目與卡匣工作臺；完整第一區敘事及另外三名角色尚未完成。參考影片是視覺來源，eon_OS 未檢視，音訊未分析。
+
+最新引擎畫面（原型，非概念圖）：
+
+![日曬街頭低角度展示](docs/art/street-preview.png)
+
+[遊玩畫面](docs/art/gameplay-preview.png) · [工作臺](docs/art/bench-preview.png) · [Jax 三視圖](docs/art/jax-preview.png)
 
 ## 資料夾結構（固定，不要隨便增加新層）
 
@@ -18,7 +32,7 @@
 
 ## 現有文件
 
-- [美術風格與 AI 交接指南](docs/art/style-guide.md) — 已確立規格、Drive 參考分析、三種風格提示詞、技術術語、Blender／Godot 流程與待辦；AI 接手美術工作先讀頂部優先順序（2026-11-04 更新）
+- [美術風格與 AI 交接指南](docs/art/style-guide.md) — 已確立規格、Drive 參考分析、三種參考提示詞、技術術語、Blender／Godot 流程與待辦；AI 接手美術工作先讀頂部優先順序（2026-11-04 更新）
 - `docs/art/slumlordz-sandwich.mp4`、`docs/art/ice-cream.mp4` — 美術與整體感覺參考影片
 - `docs/art/asset-spec.md` — 換模型與場景的資產規格
 - `docs/design/world.md` — 世界觀（疊域、勢力、衝突、反社會基調、命名規則）

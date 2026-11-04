@@ -1,15 +1,16 @@
 extends Node3D
 ## Builds the low-poly street arena from flat-colour boxes (palette from docs/art/style-guide.md).
 
-const ASPHALT := Color("3B3F4E")
-const CHALK := Color("E7DFC9")
-const SIDEWALK := Color("BCC5D4")
-const NAVY := Color("292D3B")
+const ART := preload("res://game/scripts/art-palette.gd")
+const ASPHALT := ART.ROAD
+const CHALK := ART.PAPER
+const SIDEWALK := ART.CONCRETE
+const INK := ART.INK
 const BUILDING_COLORS: Array[Color] = [
-	Color("CC6657"), Color("75C7B0"), Color("E7DFC9"), Color("9B8ACC"),
-	Color("8C9871"), Color("D6D573"), Color("859AC1"),
+	ART.PAPER, ART.CONCRETE, ART.MINT, ART.TEAL, ART.OLIVE,
 ]
-const SKY := Color("52B7F0")
+const SHOP_COLORS: Array[Color] = [ART.CORAL, ART.YELLOW, ART.TEAL]
+var materials: Dictionary = {}
 
 var rng := RandomNumberGenerator.new()
 
@@ -19,12 +20,12 @@ func _ready() -> void:
 	_build_ground()
 	_build_buildings()
 	_build_props()
+	_build_street_details()
 
 func _mat(color: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = 1.0
-	return m
+	if not materials.has(color):
+		materials[color] = ART.material(color)
+	return materials[color]
 
 func _box(pos: Vector3, size: Vector3, color: Color, collide := false) -> Node3D:
 	var node: Node3D
@@ -48,19 +49,25 @@ func _box(pos: Vector3, size: Vector3, color: Color, collide := false) -> Node3D
 	return node
 
 func _setup_environment() -> void:
+	get_parent().get_node("Floor/Mesh").material_override = _mat(ASPHALT)
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = SKY
+	env.background_mode = Environment.BG_SKY
+	var sky_material := ShaderMaterial.new()
+	sky_material.shader = preload("res://game/scripts/street-sky.gdshader")
+	sky_material.set_shader_parameter("sky_color", Vector3(ART.SKY.r, ART.SKY.g, ART.SKY.b))
+	var sky := Sky.new()
+	sky.sky_material = sky_material
+	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("F4E9D6")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.35
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	var sun: DirectionalLight3D = get_parent().get_node_or_null("Sun")
 	if sun:
-		sun.light_color = Color("FFF1D6")
-		sun.light_energy = 0.7
+		sun.light_color = Color("FFF8E8")
+		sun.light_energy = 0.65
 		sun.shadow_enabled = true
 
 func _build_ground() -> void:
@@ -89,9 +96,13 @@ func _facade(pos: Vector3, size: Vector3, color: Color, face_dir: Vector3) -> vo
 			else:
 				win_pos.z += along * size.z
 				win_size = Vector3(0.08, 1.3, 1.2)
-			_box(win_pos, win_size, NAVY)
+			_box(win_pos, win_size, INK)
+	if face_dir.z > 0.5:
+		_box(Vector3(pos.x, 1.2, pos.z + size.z / 2.0 + 0.06), Vector3(size.x * 0.72, 2.2, 0.1), INK)
+		_box(Vector3(pos.x, 1.1, pos.z + size.z / 2.0 + 0.13), Vector3(size.x * 0.57, 1.6, 0.06), ART.TEAL)
+		_sign(Vector3(pos.x, 3.0, pos.z + size.z / 2.0 + 0.15), "TURB / 07" if pos.x > 10 else "BO / SUPPLY", ART.PAPER, INK)
 	# shop awning on the ground floor
-	var awning_color: Color = BUILDING_COLORS[rng.randi() % BUILDING_COLORS.size()]
+	var awning_color: Color = SHOP_COLORS[rng.randi() % SHOP_COLORS.size()]
 	if absf(face_dir.z) > 0.5:
 		_box(pos - Vector3(0, size.y / 2.0 - 2.6, 0) + face_dir * (size.z / 2.0 + 0.5), Vector3(size.x * 0.8, 0.25, 1.2), awning_color)
 	else:
@@ -119,20 +130,65 @@ func _build_buildings() -> void:
 func _build_props() -> void:
 	# lamp posts
 	for p in [Vector3(-12, 0, -15), Vector3(12, 0, -15), Vector3(-16, 0, 17), Vector3(16, 0, 17)]:
-		_box(p + Vector3(0, 2.5, 0), Vector3(0.25, 5.0, 0.25), NAVY, true)
-		_box(p + Vector3(0, 5.1, 0), Vector3(1.0, 0.3, 0.5), Color("D6D573"))
+		_box(p + Vector3(0, 2.5, 0), Vector3(0.25, 5.0, 0.25), INK, true)
+		_box(p + Vector3(0, 5.1, 0), Vector3(1.0, 0.3, 0.5), ART.YELLOW)
 	# trees
 	for p in [Vector3(-6, 0, -15.5), Vector3(5, 0, -15.5), Vector3(-19, 0, 6), Vector3(19, 0, -6)]:
 		_box(p + Vector3(0, 1.0, 0), Vector3(0.4, 2.0, 0.4), Color("7A5A44"), true)
-		var crown := _box(p + Vector3(0, 3.0, 0), Vector3(2.4, 2.2, 2.4), Color("35676B"))
+		var crown := _box(p + Vector3(0, 3.0, 0), Vector3(2.4, 2.2, 2.4), ART.TEAL)
 		crown.rotation.y = 0.6
-		var top := _box(p + Vector3(0, 4.4, 0), Vector3(1.6, 1.2, 1.6), Color("75C7B0"))
+		var top := _box(p + Vector3(0, 4.4, 0), Vector3(1.6, 1.2, 1.6), ART.LEAF)
 		top.rotation.y = 0.2
 	# parked yellow car
-	_box(Vector3(-11, 0.7, -11.5), Vector3(4.2, 1.1, 2.0), Color("D6D573"), true)
-	_box(Vector3(-11.3, 1.55, -11.5), Vector3(2.2, 0.8, 1.8), NAVY)
+	_box(Vector3(-11, 0.7, -11.5), Vector3(4.2, 1.1, 2.0), ART.YELLOW, true)
+	_box(Vector3(-11.3, 1.55, -11.5), Vector3(2.2, 0.8, 1.8), INK)
 	# vending machines and crates along the back sidewalk
-	_box(Vector3(8, 1.0, -15.8), Vector3(1.0, 2.0, 0.8), Color("CC6657"), true)
-	_box(Vector3(9.4, 1.0, -15.8), Vector3(1.0, 2.0, 0.8), Color("9B8ACC"), true)
-	_box(Vector3(-3, 0.5, -15.5), Vector3(1.0, 1.0, 1.0), Color("859AC1"), true)
-	_box(Vector3(-1.8, 0.4, -15.5), Vector3(0.8, 0.8, 0.8), Color("D6D573"), true)
+	_box(Vector3(8, 1.0, -15.8), Vector3(1.0, 2.0, 0.8), ART.CORAL, true)
+	_box(Vector3(9.4, 1.0, -15.8), Vector3(1.0, 2.0, 0.8), ART.TEAL, true)
+	_box(Vector3(-3, 0.5, -15.5), Vector3(1.0, 1.0, 1.0), ART.MINT, true)
+	_box(Vector3(-1.8, 0.4, -15.5), Vector3(0.8, 0.8, 0.8), ART.YELLOW, true)
+
+func _sign(pos: Vector3, text: String, background: Color, foreground: Color) -> void:
+	_box(pos, Vector3(4.8, 0.85, 0.12), background)
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 48
+	label.pixel_size = 0.012
+	label.modulate = foreground
+	label.outline_size = 0
+	label.no_depth_test = false
+	label.position = pos + Vector3(0, 0, 0.08)
+	add_child(label)
+
+func _build_street_details() -> void:
+	# Tile seams: decorative, leave all combat/click-to-move collision unchanged.
+	for x in range(-28, 29, 2):
+		_box(Vector3(x, 0.035, -17.5), Vector3(0.035, 0.012, 5), ART.PAPER)
+	for x in range(-28, 29, 2):
+		_box(Vector3(x, 0.035, 19), Vector3(0.035, 0.012, 4), ART.INK)
+	for z in [17.05, 19.0, 20.95]:
+		_box(Vector3(0, 0.035, z), Vector3(60, 0.012, 0.035), ART.INK)
+	for z in [-19.0, -17.0, -15.1]:
+		_box(Vector3(0, 0.035, z), Vector3(60, 0.012, 0.035), ART.PAPER)
+	# Elevated freight line behind the arena, away from boss and enemy spawn points.
+	_box(Vector3(0, 7.5, -20.3), Vector3(60, 0.9, 2.3), ART.CONCRETE)
+	_box(Vector3(0, 8.02, -19.16), Vector3(60, 0.18, 0.12), ART.TEAL)
+	for x in [-20, -12, 12, 20]:
+		_box(Vector3(x, 3.55, -20.3), Vector3(0.8, 7.1, 1.0), ART.CONCRETE)
+		_box(Vector3(x, 0.6, -20.3), Vector3(0.88, 0.7, 1.08), ART.YELLOW)
+	# Foreground street stall: broad stripes, no emissive sci-fi panels.
+	_box(Vector3(-18, 2.5, 16), Vector3(5, 0.22, 2.0), ART.CORAL)
+	for x in [-20.2, -15.8]:
+		_box(Vector3(x, 1.2, 16), Vector3(0.12, 2.4, 0.12), ART.INK)
+	_box(Vector3(-18, 0.8, 16), Vector3(4.5, 1.3, 1.0), ART.PAPER)
+	for i in 5:
+		_box(Vector3(-20 + i, 2.63, 16), Vector3(0.45, 0.03, 2.0), ART.PAPER)
+	# Front panels make the existing vending-machine silhouettes readable.
+	for x in [8.0, 9.4]:
+		_box(Vector3(x, 1.15, -15.36), Vector3(0.76, 1.25, 0.06), ART.PAPER)
+		for row in 3:
+			for col in 3:
+				_box(Vector3(x - 0.23 + col * 0.23, 0.85 + row * 0.3, -15.3), Vector3(0.12, 0.18, 0.05), ART.YELLOW if col == 1 else ART.TEAL)
+		_box(Vector3(x, 0.35, -15.3), Vector3(0.65, 0.15, 0.06), ART.INK)
+	# A small, original painted wall graphic (not copied reference logos).
+	_sign(Vector3(-12, 4.2, -19.85), "SIDE / ROUTE", ART.CORAL, ART.PAPER)

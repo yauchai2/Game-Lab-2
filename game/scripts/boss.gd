@@ -21,7 +21,7 @@ func _ready() -> void:
 	attack_range = 2.4
 	attack_damage = 12
 	attack_cooldown = 1.4
-	base_color = Color("CC6657")
+	base_color = ART.INK
 	super._ready()
 	add_to_group("boss")
 	aggro_range = 10.0
@@ -68,11 +68,11 @@ func _slam_start(player: Node3D) -> void:
 	slam_cooldown = 3.5 if hp > max_hp * 0.5 else 2.5
 	slam_pending = SLAM_DELAY
 	slam_center = player.global_position
-	_spawn_zone(slam_center, SLAM_RADIUS, SLAM_DELAY, 0, Color("D6D573"))
+	_spawn_zone(slam_center, SLAM_RADIUS, SLAM_DELAY, 0, ART.YELLOW)
 
 func _slam_land(player: Node3D) -> void:
 	slam_pending = -1.0
-	_spawn_zone(slam_center, SLAM_RADIUS, 0.25, 0, Color("CC6657"))
+	_spawn_zone(slam_center, SLAM_RADIUS, 0.25, 0, ART.CORAL)
 	var d: Vector3 = player.global_position - slam_center
 	d.y = 0.0
 	if d.length() <= SLAM_RADIUS:

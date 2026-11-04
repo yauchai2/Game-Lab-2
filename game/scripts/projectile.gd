@@ -1,4 +1,6 @@
 extends Node3D
+
+const ART := preload("res://game/scripts/art-palette.gd")
 ## Simple enemy bolt: flies straight, hurts the player on contact.
 
 var direction := Vector3.FORWARD
@@ -12,7 +14,7 @@ func _ready() -> void:
 	bm.size = Vector3(0.3, 0.3, 0.3)
 	mi.mesh = bm
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color("D6D573")
+	m.albedo_color = ART.YELLOW
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mi.material_override = m
 	add_child(mi)

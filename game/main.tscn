@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://game/scripts/jax.gd" id="1_jax"]
 
@@ -9,7 +9,7 @@
 [ext_resource type="Script" path="res://game/scripts/street.gd" id="7_street"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_floor"]
-albedo_color = Color(0.231, 0.247, 0.306, 1)
+albedo_color = Color(0.384314, 0.403922, 0.356863, 1)
 roughness = 1.0
 
 [sub_resource type="BoxMesh" id="BoxMesh_floor"]
@@ -46,8 +46,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.87, 0)
 shape = SubResource("CapsuleShape_jax")
 
 [node name="Camera3D" type="Camera3D" parent="." node_paths=PackedStringArray("follow")]
-transform = Transform3D(1, 0, 0, 0, 0.819152, 0.573576, 0, -0.573576, 0.819152, 0, 8.6, 12.3)
-fov = 60.0
+transform = Transform3D(1, 0, 0, 0, 0.819152, 0.573576, 0, -0.573576, 0.819152, 0, 7.2, 10.3)
+fov = 55.0
 script = ExtResource("3_cam")
 follow = NodePath("../Jax")
 
