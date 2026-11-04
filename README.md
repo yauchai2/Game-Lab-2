@@ -18,7 +18,7 @@
 
 ## 現有文件
 
-- `docs/art/style-guide.md` — 美術風格（由兩條參考影片整理）
+- [美術風格與 AI 交接指南](docs/art/style-guide.md) — 已確立規格、Drive 參考分析、三種風格提示詞、技術術語、Blender／Godot 流程與待辦；AI 接手美術工作先讀頂部優先順序（2026-11-04 更新）
 - `docs/art/slumlordz-sandwich.mp4`、`docs/art/ice-cream.mp4` — 美術與整體感覺參考影片
 - `docs/art/asset-spec.md` — 換模型與場景的資產規格
 - `docs/design/world.md` — 世界觀（疊域、勢力、衝突、反社會基調、命名規則）
