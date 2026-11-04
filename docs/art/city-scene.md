@@ -8,7 +8,7 @@
 - `assets/environment/city-scene-lightweight.blend`：按材質與空間區域合併靜態小物件的候選版本；可編輯版仍是源檔。此版本的實際效能須在目標引擎測試。
 - `assets/environment/city-modules/`：可獨立載入的手工資訊牌、音響、廣場圓環和圓角塔樓。
 - `assets/environment/city-textures/`：生成天空和無文字圖案的來源圖片；場景使用中的圖片和日文字型也已打包在 Blender 檔內。
-- `docs/art/city-preview-main.png`、`docs/art/city-preview-east.png`、`docs/art/city-preview-south-loop.png`：主視角、東街和南側背街預覽。
+- `docs/art/city-preview-main.png`、`docs/art/city-preview-east.png`、`docs/art/city-preview-south-loop.png`、`docs/art/city-preview-south-edge.png`：主視角、東街及南側背街預覽。
 - `docs/art/city-image-provenance.md`：本輪生成圖片的來源和提示詞。
 - `tools/blender/verify-city-scene.py`：檢查場景集合、日文、字型與圖片依賴。
 - `tools/blender/batch-city-scene.py`：由可編輯版重新產生靜態合併版。
@@ -25,6 +25,6 @@
 
 街道核心以廣場和南北、東西街為主；外圍遠景建築較簡化，場景尚未設定可行走範圍的遊戲引擎邊界。
 
-隱藏的 `COLLISION_PROXIES` 包含地面、部分建築、圓塔及候車亭的近似碰撞來源網格；它們並非已配置好的遊戲引擎碰撞，覆蓋亦未完整。以 1 米間距對地面作粗略抽樣，所列的廣場、南街、東西外街、南側背街、北面過路處及圓塔旁檢查點在抽樣網格中相連，結果見 `docs/art/city-clearance-check.json`。南面遠景缺口已以同一視角重新渲染確認；另有少量近距離水平射線抽查。這些檢查可漏掉細小障礙，不能證明完整行走路線、坡面、碰撞或角色物理可用。
+隱藏的 `COLLISION_PROXIES` 包含地面、部分建築、圓塔及候車亭的近似碰撞來源網格；它們並非已配置好的遊戲引擎碰撞，覆蓋亦未完整。以 1 米間距對地面作粗略抽樣，所列的廣場、南街、東西外街、南側背街及外圍接駁、北面過路處及圓塔旁檢查點在抽樣網格中相連，結果見 `docs/art/city-clearance-check.json`。南面遠景缺口及外圍道路接駁已以原視角重新渲染確認；另有少量近距離水平射線抽查。這些檢查可漏掉細小障礙，不能證明完整行走路線、坡面、碰撞或角色物理可用。
 
 此提交不包含原參考影片、過程中的大量渲染、暫存檔或 Blender 自動備份。
