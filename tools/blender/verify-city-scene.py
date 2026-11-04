@@ -13,13 +13,15 @@ collections = (
     'NORTH_CROSS_STREET_20261104', 'OUTER_STREETS_20261104',
     'OUTER_SHOP_SIGNS_20261104', 'ROUND_LANDMARK_20261104', 'PLAZA_FINISH_20261104',
     'PLAZA_BILLBOARD_STUDY_20261104', 'LANDMARK_ENTRY_REVIEW_20261104',
+    'SOUTH_HORIZON_REPAIR_20261104', 'SOUTH_STREET_LOOP_20261104',
 )
 for filename in ('city-scene.blend', 'city-scene-lightweight.blend'):
     bpy.ops.wm.open_mainfile(filepath=str(root / 'assets/environment' / filename))
     for name in collections:
         assert bpy.data.collections.get(name), f'{filename}: missing collection {name}'
     for name in ('MainCamera', 'UnderBridgeReview', 'NorthStreetReview20261104',
-                 'WestStreetReview20261104', 'EastStreetReview20261104', 'LandmarkWideReview20261104'):
+                 'WestStreetReview20261104', 'EastStreetReview20261104', 'LandmarkWideReview20261104', 'SouthGapReview20261104',
+                 'SouthOuterStreetReview20261104', 'SouthRearCrossReview20261104'):
         assert bpy.data.objects.get(name), f'{filename}: missing camera {name}'
     for name, body in (('Letter_RADIO', '喫茶'), ('Rear_sign_SOUND', 'レコード')):
         obj = bpy.data.objects.get(name)

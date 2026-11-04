@@ -1,10 +1,10 @@
 {
   "step_m": 1,
   "ray_start_m": 1.8,
-  "sample_count": 20961,
-  "free_samples": 19643,
-  "conservative_samples": 17839,
-  "reachable_samples": 17781,
+  "sample_count": 24939,
+  "free_samples": 23497,
+  "conservative_samples": 21629,
+  "reachable_samples": 21571,
   "targets": {
     "plaza": {
       "point": [
@@ -95,11 +95,39 @@
       "free": true,
       "conservative_clearance": true,
       "connected": true
+    },
+    "southwest_loop": {
+      "point": [
+        -60,
+        -80
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "southeast_loop": {
+      "point": [
+        60,
+        -80
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "south_rear_cross": {
+      "point": [
+        0,
+        -80
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
     }
   },
   "limitations": [
     "Only visible geometry below the ray origin is sampled; thin obstacles can fall between grid points, and tall geometry is not fully checked.",
     "Connected samples do not validate exported collisions, engine navigation, slopes, or character physics."
   ],
-  "source_scene": "city_environment_master_v2_20261104.blend"
+  "source_scene": "city_environment_master_v4_20261104.blend",
+  "repository_scene": "assets/environment/city-scene.blend"
 }
