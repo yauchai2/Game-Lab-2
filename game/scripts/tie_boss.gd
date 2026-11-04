@@ -76,7 +76,7 @@ func _physics_process(delta: float) -> void:
 				if confuse_cd <= 0.0:
 					confuse_cd = 7.0
 					confused_left = 3.0
-					_material.albedo_color = Color("B0B0B0")
+					_material.albedo_color = Color("D6D573")
 					confused_changed.emit(true)
 			_attack(delta, player, to, dist)
 			if zone_pending < 0.0 and dist > attack_range:
@@ -108,7 +108,7 @@ func _attack(delta: float, player: Node3D, to: Vector3, dist: float) -> void:
 		zone_cd = 4.5 if phase == 1 else 3.6
 		zone_pending = 1.0
 		zone_center = player.global_position
-		_spawn_zone(zone_center, 2.4, 1.0, Color("B0B0B0"))
+		_spawn_zone(zone_center, 2.4, 1.0, Color("D6D573"))
 	if phase == 2:
 		summon_cd -= delta
 		if summon_cd <= 0.0 and get_tree().get_nodes_in_group("workers").size() < 2:
@@ -127,7 +127,7 @@ func _update_phase() -> void:
 
 func _zone_land(player: Node3D) -> void:
 	zone_pending = -1.0
-	_spawn_zone(zone_center, 2.4, 0.3, Color("FFFFFF"))
+	_spawn_zone(zone_center, 2.4, 0.3, Color("CC6657"))
 	var d: Vector3 = player.global_position - zone_center
 	d.y = 0.0
 	if d.length() <= 2.4:

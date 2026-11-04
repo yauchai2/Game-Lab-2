@@ -52,9 +52,6 @@ func _ready() -> void:
 	add_to_group("enemies")
 	if camp != "":
 		add_to_group(camp)
-	# Greybox：普通敵人以亮度分角色（近戰深、遠程中、裝甲較亮、精英最深），不用色彩。
-	if get_script().resource_path.ends_with("/enemy.gd"):
-		base_color = Color.from_hsv(0.0, 0.0, 0.08 if big else (0.52 if armor else (0.36 if ranged else 0.16)))
 	_material.albedo_color = base_color
 	mesh.material_override = _material
 	_material.albedo_texture = null
@@ -200,7 +197,7 @@ func _physics_process(delta: float) -> void:
 	if stagger_left > 0.0:
 		windup_left = -1.0
 		stagger_left -= delta
-		_material.albedo_color = Color("A8A8A8")
+		_material.albedo_color = Color("9FB6E8")
 		if stagger_left <= 0.0:
 			_material.albedo_color = base_color
 		velocity.x = knockback.x
@@ -226,7 +223,7 @@ func _physics_process(delta: float) -> void:
 		elif windup_left >= 0.0:
 			windup_left -= delta
 			# 前搖期間原地不動，身體閃紅
-			_material.albedo_color = Color("F2F2F2") if int(windup_left * 14.0) % 2 == 0 else base_color
+			_material.albedo_color = Color("E85A4F") if int(windup_left * 14.0) % 2 == 0 else base_color
 			if windup_left < 0.0:
 				_material.albedo_color = base_color
 				cooldown = attack_cooldown
@@ -257,7 +254,7 @@ func _spawn_telegraph() -> void:
 		_tele_mesh.bottom_radius = 1.0
 		_tele_mesh.height = 0.02
 		_tele_mat = StandardMaterial3D.new()
-		_tele_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.4)
+		_tele_mat.albedo_color = Color(0.9, 0.2, 0.15, 0.35)
 		_tele_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_tele_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var disc := MeshInstance3D.new()
