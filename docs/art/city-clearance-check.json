@@ -165,5 +165,6 @@
     "Connected samples do not validate exported collisions, engine navigation, slopes, or character physics."
   ],
   "source_scene": "city_environment_master_v5_20261104.blend",
+  "source_sha256": "0734ef999583d6e4be0a3c90ae5312e68fcd60f39daf8e98c10da063f867e3ee",
   "repository_scene": "assets/environment/city-scene.blend"
 }

@@ -8,12 +8,12 @@
 - `assets/environment/city-scene-lightweight.blend`：按材質與空間區域合併靜態小物件的候選版本；可編輯版仍是源檔。此版本的實際效能須在目標引擎測試。
 - `assets/environment/city-modules/`：可獨立載入的手工資訊牌、音響、廣場圓環和圓角塔樓。
 - `assets/environment/city-textures/`：生成天空和無文字圖案的來源圖片；場景使用中的圖片和日文字型也已打包在 Blender 檔內。
-- `docs/art/city-preview-main.png`、`docs/art/city-preview-east.png`、`docs/art/city-preview-south-loop.png`、`docs/art/city-preview-south-edge.png`：主視角、東街及南側背街預覽。
+- `docs/art/city-preview-main.png`、`docs/art/city-preview-east.png`、`docs/art/city-preview-south-loop.png`、`docs/art/city-preview-south-edge.png`、`docs/art/city-preview-south-terminus.png`：主視角、東街及南側背街預覽。
 - `docs/art/city-image-provenance.md`：本輪生成圖片的來源和提示詞。
 - `tools/blender/verify-city-scene.py`：檢查場景集合、日文、字型與圖片依賴。
 - `tools/blender/batch-city-scene.py`：由可編輯版重新產生靜態合併版。
 
-以 Blender 4.3 或相容版本開啟，使用 Eevee 渲染。主鏡頭為 `MainCamera`，另有橋底、北街、東西側街與圓塔檢查鏡頭。原列車模型保留但在新版中隱藏，方便比較。
+以 Blender 4.3 或相容版本開啟，使用 Eevee 渲染。主鏡頭為 `MainCamera`，另有橋底、北街、東西側街與圓塔檢查鏡頭。原列車模型保留但在新版中隱藏，方便比較。南側外圍支路以少量花槽收口，遠處樓群為簡化背景。
 
 建築色階使用 Blender 的 Shader to RGB，深色輪廓使用合成器深度資訊；這些效果一般不能完整直接匯出至 GLB 或其他引擎，須在目標引擎重建並驗證。生成的 `pixel-concrete-source.png` 來源為 1254 × 1254 像素；材質以每 10 米 128 個取樣步階及最近鄰呈現低解像外觀，來源圖本身不是 128 × 128。日文可以包含有意義的日式漢字。
 
