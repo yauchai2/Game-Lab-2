@@ -1,0 +1,105 @@
+{
+  "step_m": 1,
+  "ray_start_m": 1.8,
+  "sample_count": 20961,
+  "free_samples": 19643,
+  "conservative_samples": 17839,
+  "reachable_samples": 17781,
+  "targets": {
+    "plaza": {
+      "point": [
+        0,
+        -24
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "south_cross": {
+      "point": [
+        0,
+        -52
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "west_outer": {
+      "point": [
+        -60,
+        -20
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "east_outer": {
+      "point": [
+        60,
+        -20
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "northwest": {
+      "point": [
+        -24,
+        46
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "northeast": {
+      "point": [
+        30,
+        46
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "north_cross": {
+      "point": [
+        0,
+        65
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "northwest_cross": {
+      "point": [
+        -24,
+        65
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "northeast_cross": {
+      "point": [
+        34,
+        65
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    },
+    "landmark_street": {
+      "point": [
+        55,
+        49
+      ],
+      "free": true,
+      "conservative_clearance": true,
+      "connected": true
+    }
+  },
+  "limitations": [
+    "Only visible geometry below the ray origin is sampled; thin obstacles can fall between grid points, and tall geometry is not fully checked.",
+    "Connected samples do not validate exported collisions, engine navigation, slopes, or character physics."
+  ],
+  "source_scene": "city_environment_master_v2_20261104.blend"
+}
