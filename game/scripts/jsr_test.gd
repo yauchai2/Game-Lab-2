@@ -23,12 +23,14 @@ var edge_quad: MeshInstance3D
 var hull_mat: ShaderMaterial
 var mats := {}
 var jax: Node3D
+var screen_mats: Array[ShaderMaterial] = []
 
 func _ready() -> void:
 	_environment()
 	_ground()
 	_buildings()
 	_props()
+	_details()
 	_jax()
 	_cameras()
 	_outline_quad()
@@ -157,6 +159,24 @@ func _props() -> void:
 		_box(Vector3(3.6, 0, z), Vector3(0.25, 7.0, 0.25), ART.INK)
 		_box(Vector3(3.6, 7.0, z), Vector3(1.6, 0.12, 0.12), ART.INK)
 
+func _details() -> void:
+	# Vertical blade signs, facade AC units, planters, bins, steps, posters.
+	var signs := [[Vector3(12.6, 3.2, -4.2), ART.CORAL], [Vector3(22.6, 3.6, -4.2), ART.YELLOW], [Vector3(31.6, 3.0, -4.2), ART.TEAL]]
+	for sg in signs:
+		_box(sg[0], Vector3(0.25, 2.2, 1.1), sg[1])
+		_box(sg[0] + Vector3(0, 0.3, 0.45), Vector3(0.28, 0.9, 0.5), ART.PAPER)
+	_box(Vector3(4.6, 4.6, -4.2), Vector3(1.4, 0.9, 0.5), ART.CONCRETE)
+	_box(Vector3(19.6, 5.8, -4.2), Vector3(1.4, 0.9, 0.5), ART.CONCRETE)
+	_box(Vector3(24.6, 3.4, -4.2), Vector3(1.4, 0.9, 0.5), ART.CONCRETE)
+	for i in 3:
+		_box(Vector3(10.0 + i * 1.1, 0, 3.8), Vector3(0.9, 0.5, 0.9), ART.INK)
+		_box(Vector3(10.0 + i * 1.1, 0.5, 3.8), Vector3(0.8, 0.5, 0.8), ART.LEAF)
+	_box(Vector3(29.5, 0, -4.1), Vector3(0.7, 1.0, 0.7), ART.TEAL)
+	for i in 3:
+		_box(Vector3(6.2 + i * 0.3, 0, -3.9 + i * 0.35), Vector3(1.2 - i * 0.3, 0.18 * (i + 1), 0.4), ART.CONCRETE)
+	for i in 4:
+		_box(Vector3(2.5 + i * 1.4, 1.5 + (i % 2) * 0.6, -4.45), Vector3(0.9, 1.2, 0.05), [ART.YELLOW, ART.CORAL, ART.PAPER, ART.MINT][i])
+
 func _jax() -> void:
 	jax = JAX.instantiate()
 	jax.position = Vector3(12, 0, 2)
@@ -194,9 +214,13 @@ func _outline_quad() -> void:
 	m.render_priority = 100
 	edge_quad.material_override = m
 	game_cam.add_child(edge_quad)
-	# Showcase camera needs its own copy.
-	var q2 := edge_quad.duplicate()
+	screen_mats.append(m)
+	# Showcase camera needs its own copy with its own material.
+	var q2: MeshInstance3D = edge_quad.duplicate()
+	var m2: ShaderMaterial = m.duplicate()
+	q2.material_override = m2
 	show_cam.add_child(q2)
+	screen_mats.append(m2)
 
 func _update_camera() -> void:
 	# Fixed 45 degree yaw and 45 degree pitch (Alan, 2026-11-01); no rotation input.
@@ -215,7 +239,12 @@ func _update_camera() -> void:
 	for cam in [game_cam, show_cam]:
 		for c in cam.get_children():
 			c.visible = outlines
-	hull_mat.set_shader_parameter("width_px", 2.0 if outlines else 0.0)
+	# Line weight scales with render height so the look is the same at every resolution
+	# (characters 2 px and scenery 1 px at the 640x360 baseline).
+	var k := float(RESOLUTIONS[resolution_index].y) / 360.0
+	hull_mat.set_shader_parameter("width_px", 2.0 * k if outlines else 0.0)
+	for sm in screen_mats:
+		sm.set_shader_parameter("line_scale", k)
 
 func _apply_resolution() -> void:
 	var w := get_window()
