@@ -1,6 +1,6 @@
 # 美術風格指南
 
-更新：2026-11-04（Asia/Taipei）。本檔集中保存專案美術規則、Google Drive 參考分析、AI 提示詞及實作與交接方式；不另建平行版本。
+更新：2026-11-05（Asia/Taipei）。本檔集中保存專案美術規則、Google Drive 參考分析、AI 提示詞及實作與交接方式；不另建平行版本。新增 JSR 街區 AI 製作方法及技術修正，沿用現行美術與資產規格。
 
 ## AI 接手先讀：2026-11-04 全案改版（使用者已明確指示）
 
@@ -176,6 +176,51 @@
 > 5 秒單一連續鏡頭。0–1 秒角色壓低重心；1–3 秒向前躍起，鏡頭由靠地低角度向前跟隨；3–4 秒落地、屈膝吸收衝擊；4–5 秒繼續向前，鏡頭逐漸落後。臉、髮型、服裝圖案與道具保持一致。速度圖形只在起跳與落地出現，背景建築穩定。角色與道具動作依此鏡頭另行細化。
 
 若需翻板、轉身或繞行鏡頭，分鏡後逐段測試，避免一段生成承擔所有動作。先用關鍵影格鎖定造型，再製作短片；文字、招牌與 HUD 以獨立圖層或遊戲 UI 補上。
+
+## JSR 街區 AI 製作方法（2026-11-05 補充）
+
+來源：Alan 在本次對話提供的 JSR／BRC 場景製作文章。以下是吸收後的製作建議與提示詞，尚未執行場景生成或完成渲染驗證。採用任務拆分與明確技術規格；文章中的霓虹色票、20×40 米街區、六棟建築及滑軌是範例，不取代本專案已定色票、關卡和單人 ARPG 玩法。
+
+### 將交付拆成三部分
+
+| 部分 | 建議方法 | 交付與驗收 |
+|---|---|---|
+| 街區結構與材質測試 | 程式 AI 撰寫 Blender `bpy`，或在已連接的 Blender MCP 執行；方塊模組搭出街道、招牌框、鐵閘凹位、冷氣機和水塔 | 保留可重建腳本；檢查尺寸、通行空間、輪廓、三角面數；材質預覽與 Godot 實作分開 |
+| 立面與塗鴉 | 圖像 AI 生成正投影立面及獨立圖案，再整理 UV 與透明度 | Base Color 不畫死強烈方向光；窗格、招牌和塗鴉可重用；文字另行排版 |
+| 獨立街頭道具 | 方塊型道具優先直接建模；複雜造型可先出單體圖，再用有低面數功能的 3D 工具 | 圖生 3D 只作候選；檢查背面、底面、法線、UV、比例及實際三角面數，再匯出 GLB |
+
+這是工作內容的拆分，不要求三個 AI 或三個供應商。單一 AI 可逐步協調；是否採用 MCP 或外部生成工具，取決於當次可用能力。圖生 3D 有利於控制正面造型，但單張圖仍無法確定背面結構，不保證一定比直接建模準確。
+
+### 技術修正與專案限制
+
+- **幾何：** 明確指定 `boxy primitives, no subdivision, flat shaded, sharp edges`。Flat Shading 控制法線表現，Cel Shading 控制明暗層級，兩者不同。欄杆及電線可由 Bezier Curve 加 bevel 產生，但要限制曲線與截面解析度，轉網格後再計算三角面數。
+- **滑軌：** 一條管狀曲線只提供視覺幾何；真正可滑行仍需路徑資料、進出軌判定、速度、跳躍及碰撞邏輯。本專案目前只借用欄杆、電線與垂直街區的空間語言，尚未決定新增滑行玩法。
+- **卡通明暗：** Blender 4.2+ 的 EEVEE 可用 `Diffuse BSDF → Shader to RGB → ColorRamp（Constant）→ Emission → Material Output` 測試兩至三段明暗。以中性 diffuse 計算光照，再配本色可避免直接用彩色光照結果作閾值。此節點流程不能直接匯出成 Godot shader，遊戲端需重建並驗證。
+- **描邊：** Inverted Hull 需要向外擴張且法線反向的外殼、獨立深色材質及正確背面剔除。使用 Solidify 時必須核對 thickness、offset、翻轉法線、材質槽與 material offset；Backface Culling 是材質設定，不能只加 modifier 就視為完成。先套用物件縮放並檢查硬角破口、線寬、遠景遮擋及匯出結果；不必為每件小道具加黑線。
+- **減面：** Planar Decimate 會溶解近共面的邊，可能產生 n-gon，**不等於轉四邊面**。5°–15° 只可作靜態候選網格的試驗範圍；保護 UV、材質邊界和輪廓，必要時手工重建。以匯出後三角面數驗收，不能只看 Blender polygon 數量。
+- **預算：** 本專案維持道具 ≤500、建築 ≤1,500 三角面，貼圖 ≤128×128、純色優先。文章的道具 500–1,500 polygons 及 256／512px 貼圖只屬一般範例，不能直接當成本案新標準；描邊外殼也須列入幾何成本。
+- **貼圖：** Blender 的 `Closest` 與 Godot 的 `Nearest` 要分別設定；最近鄰是美術選項，不是 JSR 風格的充分條件。正視圖投影只適合對應立面，側面、凹位與招牌仍需 UV；已做成幾何的冷氣機等細節不要又畫成立面上的第二套。
+- **貼花與光影：** 白底圖不具透明 alpha，須另行去背或直接生成真正透明圖，並清理白邊。圖案採平塗本色，光照交由 shader；避免 `cinematic lighting`、`dramatic shadows` 等把強光影烘進貼圖的提示。保留 Base Color、減少寫實反射即可，並非不能使用任何 PBR 相容材質。
+
+### 可重用提示詞（已適配本案）
+
+**街角與 Blender 腳本：**
+
+> 請先讀取本專案美術指南與資產規格，撰寫可重複執行的 Blender 4.2+ bpy 腳本，僅建立測試集合，不清空既有場景。以 1 米為單位製作一個日曬街角：方塊建築、店面鐵閘凹位、突出式直立招牌框、冷氣機、水塔、欄杆與少量電線。使用 boxy primitives、flat shading、sharp edges，禁止 Subdivision Surface；限制曲線與圓柱分段。沿用暖白、青綠、灰綠大面及珊瑚、亮黃重點色，青藍天空搭配白雲。道具 ≤500、建築 ≤1,500 三角面，純色優先，貼圖 ≤128×128。將 EEVEE 卡通明暗與選擇性反向外殼描邊標為預覽方案，另外保留可供 GLB 匯出的本色材質；Godot 端重建著色。輸出尺寸、三角面數及材質清單，以斜俯視遊玩鏡頭和低角度展示鏡頭分別檢查輪廓與通行空間。若加入欄杆路線，只建立幾何，不宣稱已完成滑行玩法。
+
+**建築立面原圖：**
+
+> flat orthographic front elevation of a fictional Japanese street shop facade, no perspective distortion, modular window grid, roller shutter, reserved sign panels, graphic early-2000s urban game aesthetic, crisp shapes, flat unlit base colors, warm cream concrete and teal storefront, restrained coral and yellow accents, no baked directional shadows, no reflections, no photorealism, no 3D protruding props painted into the facade, no lettering; source art to be edited into a texture atlas, final project textures no larger than 128x128
+
+**塗鴉貼花：**
+
+> original 2D Tokyo street-pop graffiti decal, bold graphic outlines, chunky angular shapes, teal coral and yellow palette, flat unlit colors, transparent background with real alpha, no cast shadow, no white border, no existing brand or character; readable after reduction to a 128x128 project texture
+
+**道具概念圖與 3D 交付：**
+
+> single fictional retro Japanese vending machine, three-quarter view, chunky box proportions, simple planar surfaces, early-2000s urban game prop, warm cream and teal with small coral accents, flat colors, neutral lighting, plain background, no floor shadow, no wide-angle distortion, no brand logos, no tiny lettering. This is concept art, not proof of topology.
+
+轉 3D 時另行要求：使用工具實際支援的 low-poly 設定，完成後檢查並整理至本案 ≤500 三角面；Base Color ≤128×128、Metallic＝0、霧面，底面中心為原點，尺寸以米記錄，交付 GLB。無法達標的候選需重建或重拓樸，不能以生成設定名稱代替驗收。匯入 Godot 後再檢查比例、法線、透明邊、Nearest、描邊與斜俯視可讀性。
 
 ## 製作技術與可執行流程
 
