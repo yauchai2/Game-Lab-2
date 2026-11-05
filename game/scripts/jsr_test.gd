@@ -36,13 +36,24 @@ func _ready() -> void:
 	_update_camera()
 
 func _toon(color: Color) -> ShaderMaterial:
-	var key := color
+	var key := _vivid(color)
 	if not mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = TOON
 		m.set_shader_parameter("base_color", key)
 		mats[key] = m
 	return mats[key]
+
+## Saturation layers from the style guide: big surfaces stay low saturation (0.15-0.45),
+## mid surfaces 0.45-0.70, accents >= 0.80. Palette hues are kept, only saturation changes.
+func _vivid(c: Color) -> Color:
+	var accent := [ART.CORAL, ART.YELLOW]
+	var mid := [ART.TEAL, ART.MINT, ART.LEAF]
+	if accent.has(c):
+		return Color.from_hsv(c.h, 0.88, 1.0)
+	if mid.has(c):
+		return Color.from_hsv(c.h, 0.62, clampf(c.v + 0.05, 0.0, 1.0))
+	return c
 
 func _box(pos: Vector3, size: Vector3, color: Color, collide := false) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
@@ -57,7 +68,7 @@ func _box(pos: Vector3, size: Vector3, color: Color, collide := false) -> MeshIn
 func _environment() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = ART.SKY
+	env.background_color = Color.from_hsv(ART.SKY.h, 0.92, 0.95)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color.BLACK
 	var we := WorldEnvironment.new()

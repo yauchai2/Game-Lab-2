@@ -6,8 +6,8 @@ render_mode unshaded, depth_test_disabled, depth_draw_never, cull_disabled;
 
 uniform sampler2D depth_tex : hint_depth_texture, repeat_disable, filter_nearest;
 uniform vec4 line_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
-uniform float threshold = 0.12;
-uniform float relative_threshold = 0.012;
+uniform float ortho_threshold = 0.05;   // metres, orthographic camera
+uniform float persp_relative = 0.008;   // fraction of inverse depth, perspective camera
 
 void vertex() {
 	POSITION = vec4(VERTEX.xy, 1.0, 1.0);
@@ -16,20 +16,26 @@ void vertex() {
 void fragment() {
 	// Depth is sampled directly in fragment(): the Compatibility renderer only binds
 	// the depth texture when it is used here, not inside a helper function.
+	// A plane is linear in view z (orthographic) or in 1/z (perspective), so the second
+	// difference is ~0 on flat faces and large on silhouettes and creases. Only the
+	// nearer side (positive second difference in z) draws, keeping lines 1 px wide.
+	bool ortho = PROJECTION_MATRIX[3][3] > 0.5;
 	vec2 px = 1.0 / VIEWPORT_SIZE;
 	vec2 offs[5] = vec2[](vec2(0.0), vec2(px.x, 0.0), vec2(-px.x, 0.0), vec2(0.0, px.y), vec2(0.0, -px.y));
-	float z[5];
+	float q[5];
 	for (int i = 0; i < 5; i++) {
 		vec2 uv = SCREEN_UV + offs[i];
 		float d = texture(depth_tex, uv).r;
 		vec4 v = INV_PROJECTION_MATRIX * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
-		z[i] = -v.z / v.w;
+		float z = -v.z / v.w;
+		q[i] = ortho ? z : 1.0 / z;
 	}
-	float limit = threshold + relative_threshold * z[0];
-	float e = 0.0;
-	for (int i = 1; i < 5; i++) {
-		e = max(e, step(limit, abs(z[i] - z[0])));
-	}
+	float lim = ortho ? ortho_threshold : persp_relative * q[0];
+	float lap_h = q[1] + q[2] - 2.0 * q[0];
+	float lap_v = q[3] + q[4] - 2.0 * q[0];
+	// z second difference > 0 equals 1/z second difference < 0.
+	float sign_dir = ortho ? 1.0 : -1.0;
+	float e = max(step(lim, sign_dir * lap_h), step(lim, sign_dir * lap_v));
 	ALBEDO = line_color.rgb;
 	ALPHA = e;
 }

@@ -21,6 +21,14 @@ func _capture() -> void:
 			scene.cam_target = s[2]
 			scene._update_camera()
 			await _save("jsr-%s-%d.png" % [s[0], scene.RESOLUTIONS[res_index].x])
+		# Character close-up from the showcase camera.
+		scene.showcase = true
+		scene._update_camera()
+		scene.show_cam.fov = 45.0
+		scene.show_cam.position = scene.jax.position + Vector3(2.2, 1.2, 3.0)
+		scene.show_cam.look_at(scene.jax.position + Vector3(0, 1.0, 0))
+		await _save("jsr-closeup-%d.png" % scene.RESOLUTIONS[res_index].x)
+		scene.show_cam.fov = 85.0
 	quit()
 
 func _save(filename: String) -> void:
