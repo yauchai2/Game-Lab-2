@@ -32,6 +32,8 @@ AI 接手先讀 [美術指南](docs/art/style-guide.md) → [角色](docs/design
 
 ## 現有文件
 
+- [CLAUDE.md](CLAUDE.md) — AI 工作指引入口（必讀順序、JSR 目標、分階段規則）
+- `game/scenes/jsr-test.tscn` — JSR 風格獨立測試場景（驗收畫面在 `docs/art/jsr/`）
 - [美術風格與 AI 交接指南](docs/art/style-guide.md) — 已確立規格、Drive 參考分析、三種參考提示詞、技術術語、Blender／Godot 流程與待辦；AI 接手美術工作先讀頂部優先順序（2026-11-04 更新）
 - `docs/art/slumlordz-sandwich.mp4`、`docs/art/ice-cream.mp4` — 美術與整體感覺參考影片
 - `docs/art/asset-spec.md` — 換模型與場景的資產規格
